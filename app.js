@@ -780,7 +780,7 @@ function renderRoomCard(roomNumber, currentCount) {
     const inputElement = card.querySelector(`#input-${roomNumber}`);
 
     function sanitizeAndSave(val) {
-        const digits = String(val || '').replace(/\D/g, '');
+        const digits = String(val ?? '').replace(/\D/g, '');
         let num = digits === '' ? 0 : parseInt(digits, 10);
         if (isNaN(num) || num < 0) num = 0;
         if (num > 6) num = 6;
