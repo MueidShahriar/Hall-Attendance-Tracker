@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
 
@@ -18,8 +19,9 @@ const firebaseConfig = {
 let db;
 let userId = 'system';
 let userEmail = 'system@attendance.local';
+let userName = 'User';
 let currentViewDate = getTodayDateKey();
-let currentFloor = null; // Currently selected floor (4, 5, 6, 7, 8, or 9)
+let currentFloor = null;
 let isViewingToday = true;
 let lastNotifiedTotal = 0;
 let hasShownInputWindowReminder = false;
@@ -30,21 +32,24 @@ let sentNotifications = {
 };
 let activityLog = [];
 let displayedCounts = {};
-let currentUnsubscribe = null; // To unsubscribe from previous floor listener
+let currentUnsubscribe = null;
+let isLoggedIn = false;
 
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = 22 * 60;
+const ALLOWED_END_MINUTES = (21 * 60) + 30;
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
 
-// Dynamic room generation based on selected floor
+
 function getRoomsForFloor(floorNumber) {
-    const baseRoom = floorNumber * 100 + 2; // e.g., Floor 4 = 402, Floor 5 = 502
-    return Array.from({ length: 16 }, (_, i) => baseRoom + i);
+    const baseRoom = floorNumber * 100 + 2;
+    const rooms = Array.from({ length: 16 }, (_, i) => baseRoom + i);
+
+    return rooms.filter(room => room !== 203);
 }
 
-let ROOMS = []; // Will be set when floor is selected
+let ROOMS = [];
 const ROOMS_PER_FLOOR = 16;
 const MAX_CAPACITY = ROOMS_PER_FLOOR * 6;
 
@@ -59,14 +64,14 @@ try {
 
 function playSound(type) {
     if (!soundEnabled || !audioContext) return;
-    
+
     try {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
-        switch(type) {
+
+        switch (type) {
             case 'click':
                 oscillator.frequency.value = 800;
                 gainNode.gain.value = 0.1;
@@ -140,26 +145,26 @@ function createConfettiParticle() {
 
 function animateConfetti() {
     if (!confettiAnimating || !confettiCtx) return;
-    
+
     confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-    
+
     confettiParticles.forEach((p, i) => {
         p.y += p.speed;
         p.x += p.drift;
         p.angle += p.spin;
-        
+
         confettiCtx.save();
         confettiCtx.translate(p.x, p.y);
         confettiCtx.rotate(p.angle);
         confettiCtx.fillStyle = p.color;
         confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
         confettiCtx.restore();
-        
+
         if (p.y > confettiCanvas.height + 20) {
             confettiParticles.splice(i, 1);
         }
     });
-    
+
     if (confettiParticles.length > 0) {
         requestAnimationFrame(animateConfetti);
     } else {
@@ -194,8 +199,7 @@ function sendBrowserNotification(title, body, icon = '📋') {
     if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title, {
             body: body,
-            icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
-            badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
+            icon: '📋',
             tag: 'fas-notification',
             renotify: true
         });
@@ -208,28 +212,28 @@ const countdownStatus = document.getElementById('countdown-status');
 
 function updateCountdown() {
     if (!countdownContainer || !countdownTimer || !countdownStatus) return;
-    
-    // Only show countdown if a floor is selected
+
+
     if (!currentFloor) {
         countdownContainer.classList.add('hidden');
         return;
     }
-    
+
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-    
+
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES) {
         const remainingMinutes = ALLOWED_END_MINUTES - minutes;
         const hours = Math.floor(remainingMinutes / 60);
         const mins = remainingMinutes % 60;
         const secs = 59 - now.getSeconds();
-        
+
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         countdownStatus.textContent = 'remaining to submit';
         countdownTimer.classList.remove('text-red-600');
         countdownTimer.classList.add('text-indigo-600');
-        
+
         if (remainingMinutes <= 15) {
             countdownTimer.classList.remove('text-indigo-600');
             countdownTimer.classList.add('text-red-600');
@@ -239,7 +243,7 @@ function updateCountdown() {
         const hours = Math.floor(untilStartMinutes / 60);
         const mins = untilStartMinutes % 60;
         const secs = 59 - now.getSeconds();
-        
+
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         countdownStatus.textContent = 'until window opens';
@@ -271,7 +275,7 @@ function filterRooms(searchTerm) {
             }
         }
     });
-    
+
     if (clearSearchBtn) {
         if (term !== '') {
             clearSearchBtn.classList.remove('hidden');
@@ -313,24 +317,24 @@ function applyColorTheme(colorName) {
     document.documentElement.style.setProperty('--theme-primary', theme.primary);
     document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
     document.documentElement.style.setProperty('--theme-gradient', theme.gradient);
-    
+
     const gradientCard = document.getElementById('total-attendance-card');
     if (gradientCard) {
         gradientCard.style.background = theme.gradient;
     }
-    
-    // Also apply to Total Hall Card
+
+
     const totalHallCard = document.getElementById('total-hall-card');
     if (totalHallCard) {
         totalHallCard.style.background = theme.gradient;
     }
-    
+
     document.querySelectorAll('.input-number').forEach(input => {
         input.style.setProperty('--focus-color', theme.primary);
     });
-    
+
     localStorage.setItem('fas_color_theme', colorName);
-    
+
     colorOptions.forEach(opt => {
         opt.classList.remove('active');
         if (opt.dataset.color === colorName) {
@@ -397,11 +401,11 @@ function formatDateKey(date) {
 function formatDisplayDate(dateKey) {
     const [year, month, day] = dateKey.split('-');
     const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
 }
 
@@ -413,6 +417,140 @@ function isWithinAllowedTime() {
     if (!ALLOW_TIME_LIMIT) return true;
     const minutes = getMinutesSinceMidnight();
     return minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES;
+}
+
+function setupGoogleLogin(auth) {
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    if (!googleLoginBtn) return;
+
+    googleLoginBtn.addEventListener('click', async () => {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            userId = user.uid;
+            userEmail = user.email || 'Google User';
+            userName = user.displayName || 'User';
+            isLoggedIn = true;
+
+            logActivity(`User logged in: ${userEmail}`);
+            logUserLogin();
+            showNotification(`Welcome ${userName}! You can now input attendance.`, 'success', 3000);
+            googleLoginBtn.textContent = `✓ ${userName}`;
+            googleLoginBtn.disabled = true;
+            googleLoginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            googleLoginBtn.classList.add('bg-green-600', 'cursor-default');
+
+            updateInputsBasedOnLogin();
+        } catch (error) {
+            showNotification(`Login failed: ${error.message}`, 'danger', 3000);
+        }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            userEmail = user.email || 'Google User';
+            userName = user.displayName || 'User';
+            isLoggedIn = true;
+            googleLoginBtn.textContent = `✓ ${userName}`;
+            googleLoginBtn.disabled = true;
+            googleLoginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            googleLoginBtn.classList.add('bg-green-600', 'cursor-default');
+            updateInputsBasedOnLogin();
+        } else {
+            isLoggedIn = false;
+            googleLoginBtn.textContent = 'Login with Google';
+            googleLoginBtn.disabled = false;
+            googleLoginBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            googleLoginBtn.classList.remove('bg-green-600', 'cursor-default');
+            updateInputsBasedOnLogin();
+        }
+    });
+}
+
+function updateInputsBasedOnLogin() {
+    const allInputs = document.querySelectorAll('.input-number');
+    const allCards = document.querySelectorAll('.room-card');
+
+    allInputs.forEach(input => {
+        if (!isLoggedIn) {
+            input.disabled = true;
+            input.style.opacity = '0.5';
+            input.style.cursor = 'not-allowed';
+            input.title = 'Please login to input attendance';
+        } else if (isViewingToday && isWithinAllowedTime()) {
+            input.disabled = false;
+            input.style.opacity = '1';
+            input.style.cursor = 'text';
+            input.title = '';
+        }
+    });
+
+    if (!isLoggedIn) {
+        showNotification('🔒 Please login with Google to input attendance', 'info', 5000);
+    }
+}
+
+function logActivity(action) {
+    if (!db) return;
+    const timestamp = new Date().toISOString();
+    const activityRef = ref(db, `activity_logs/${userId}/${Date.now()}`);
+    set(activityRef, {
+        user: userEmail,
+        name: userName,
+        action: action,
+        timestamp: timestamp
+    }).catch(err => console.warn('Activity log failed:', err));
+}
+
+function logUserLogin() {
+    if (!db || !userEmail) return;
+    const timestamp = new Date().toISOString();
+    const loginRef = ref(db, `user_logins/${Date.now()}`);
+    set(loginRef, {
+        email: userEmail,
+        name: userName,
+        user_id: userId,
+        login_time: timestamp,
+        date: getTodayDateKey()
+    }).catch(err => console.warn('Login log failed:', err));
+}
+
+async function logRoomUpdate(roomNumber, floor, count) {
+    if (!db || !userEmail) return;
+    const timestamp = new Date().toISOString();
+    const emailKey = userEmail.replace(/[.#$[\]]/g, '_');
+
+    const updateRef = ref(db, `room_updates/${Date.now()}`);
+    await set(updateRef, {
+        email: userEmail,
+        name: userName,
+        user_id: userId,
+        room: roomNumber,
+        floor: floor,
+        count: count,
+        timestamp: timestamp,
+        date: getTodayDateKey()
+    }).catch(err => console.warn('Update log failed:', err));
+
+    const userStatsRef = ref(db, `user_stats/${emailKey}`);
+    try {
+        const snapshot = await get(userStatsRef);
+        const currentStats = snapshot.val() || { update_count: 0, rooms_updated: [] };
+        const newCount = (currentStats.update_count || 0) + 1;
+
+        await set(userStatsRef, {
+            email: userEmail,
+            name: userName,
+            update_count: newCount,
+            last_update: timestamp,
+            last_room: roomNumber,
+            last_floor: floor
+        });
+    } catch (err) {
+        console.warn('User stats update failed:', err);
+    }
 }
 
 const totalCountDisplay = document.getElementById('total-count-display');
@@ -434,7 +572,7 @@ const roomSectionTitle = document.getElementById('room-section-title');
 const timeNote = document.getElementById('time-note');
 const totalHallCount = document.getElementById('total-hall-count');
 
-// All floors for total hall calculation
+
 const ALL_FLOORS = [1, 2, 3, 4, 5, 6];
 
 const activityLogModal = document.getElementById('activity-log-modal');
@@ -451,10 +589,9 @@ function displayError(message) {
     if (loadingStatus) loadingStatus.classList.add('hidden');
 }
 
-// Activity log functionality removed - no longer saving to Firebase
 
 async function loadActivityLog() {
-    // Activity logs disabled
+
     return [];
 }
 
@@ -475,15 +612,15 @@ async function showActivityLog() {
     if (activityLogContent) {
         activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">Loading activity log...</p>';
     }
-    
+
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     if (logDateFilter) logDateFilter.value = `${year}-${month}-${day}`;
-    
+
     activityLog = await loadActivityLog();
-    
+
     const users = [...new Set(activityLog.map(log => log.user))];
     if (logUserFilter) {
         logUserFilter.innerHTML = '<option value="">All Users</option>';
@@ -491,14 +628,14 @@ async function showActivityLog() {
             logUserFilter.innerHTML += `<option value="${user}">${user}</option>`;
         });
     }
-    
+
     if (logRoomFilter) {
         logRoomFilter.innerHTML = '<option value="">All Rooms</option>';
         ROOMS.forEach(room => {
             logRoomFilter.innerHTML += `<option value="${room}">Room ${room}</option>`;
         });
     }
-    
+
     filterActivityLog();
 }
 
@@ -506,39 +643,39 @@ function filterActivityLog() {
     const dateFilter = logDateFilter ? logDateFilter.value : '';
     const userFilter = logUserFilter ? logUserFilter.value : '';
     const roomFilter = logRoomFilter ? logRoomFilter.value : '';
-    
+
     let filtered = activityLog;
-    
+
     if (dateFilter) {
         filtered = filtered.filter(log => log.date === dateFilter);
     }
-    
+
     if (userFilter) {
         filtered = filtered.filter(log => log.user === userFilter);
     }
-    
+
     if (roomFilter) {
-        filtered = filtered.filter(log => 
+        filtered = filtered.filter(log =>
             log.details && log.details.includes(`Room ${roomFilter}`)
         );
     }
-    
+
     displayActivityLog(filtered);
 }
 
 function displayActivityLog(logs) {
     if (!activityLogContent) return;
-    
+
     if (logs.length === 0) {
         activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">No activity found for selected filters.</p>';
         return;
     }
-    
+
     activityLogContent.innerHTML = logs.map(log => {
         const time = new Date(log.timestamp).toLocaleString();
-        const actionColor = log.action === 'update' ? 'text-blue-600' : 
-                           log.action === 'reset' ? 'text-red-600' : 'text-green-600';
-        
+        const actionColor = log.action === 'update' ? 'text-blue-600' :
+            log.action === 'reset' ? 'text-red-600' : 'text-green-600';
+
         return `
             <div class="activity-log-item border border-gray-200 rounded-lg p-4">
                 <div class="flex justify-between items-start">
@@ -555,17 +692,17 @@ function displayActivityLog(logs) {
 
 function showNotification(message, type = 'info', duration = 5000) {
     if (!notificationContainer) return;
-    
+
     const notification = document.createElement('div');
     notification.className = `notification notification-${type} text-white p-4 rounded-lg shadow-lg flex items-start gap-3`;
-    
+
     const icon = {
         'info': 'ℹ️',
         'warning': '⚠️',
         'success': '✓',
         'danger': '⚡'
     }[type] || 'ℹ️';
-    
+
     notification.innerHTML = `
         <span class="text-2xl">${icon}</span>
         <div class="flex-1">
@@ -573,9 +710,9 @@ function showNotification(message, type = 'info', duration = 5000) {
         </div>
         <button class="text-white hover:text-gray-200 font-bold text-xl leading-none" onclick="this.parentElement.remove()">×</button>
     `;
-    
+
     notificationContainer.appendChild(notification);
-    
+
     if (duration > 0) {
         setTimeout(() => {
             notification.style.animation = 'slideIn 0.3s ease-out reverse';
@@ -584,33 +721,12 @@ function showNotification(message, type = 'info', duration = 5000) {
     }
 }
 
-function checkCapacityAndNotify(total) {
-    const percentFull = (total / MAX_CAPACITY) * 100;
-    
-    if (percentFull >= 80 && percentFull < 95 && lastNotifiedTotal < (MAX_CAPACITY * 0.8)) {
-        showNotification(`Capacity Alert: ${total}/${MAX_CAPACITY} students (${Math.round(percentFull)}% full)`, 'warning', 7000);
-        playSound('warning');
-    }
-    else if (percentFull >= 95 && percentFull < 100 && lastNotifiedTotal < (MAX_CAPACITY * 0.95)) {
-        showNotification(`Critical: Near Maximum Capacity! ${total}/${MAX_CAPACITY} students (${Math.round(percentFull)}% full)`, 'danger', 10000);
-        playSound('warning');
-    }
-    else if (percentFull >= 100 && !hasShownFullConfetti) {
-        showNotification(`🎉 Maximum Capacity Reached! ${total}/${MAX_CAPACITY} students - Great job everyone!`, 'success', 0);
-        sendBrowserNotification('🎉 Full Attendance!', `All ${MAX_CAPACITY} students present on floor!`, '🎊');
-        launchConfetti();
-        hasShownFullConfetti = true;
-    }
-    
-    lastNotifiedTotal = total;
-}
-
 function checkInputWindowAndNotify() {
     if (!isViewingToday) return;
-    
+
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-    
+
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_START_MINUTES + 5 && !sentNotifications.reminder1) {
         showNotification(`🔔 Reminder for ${userId}: Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`, 'info', 10000);
         sendEmailReminder('first');
@@ -626,7 +742,7 @@ function checkInputWindowAndNotify() {
         sendEmailReminder('final');
         sentNotifications.reminder3 = true;
     }
-    
+
     if (minutes < ALLOWED_START_MINUTES || minutes >= ALLOWED_END_MINUTES) {
         sentNotifications = {
             reminder1: false,
@@ -637,7 +753,7 @@ function checkInputWindowAndNotify() {
 }
 
 async function sendEmailReminder(type) {
-    // Email reminders disabled - not saving user data to Firebase
+
     console.log(`Reminder (${type}) - not saved to Firebase`);
 }
 
@@ -661,6 +777,9 @@ async function initializeFirebase() {
 
         const app = initializeApp(firebaseConfig);
         db = getDatabase(app);
+        const auth = getAuth(app);
+
+        setupGoogleLogin(auth);
 
         try {
             const analytics = getAnalytics(app);
@@ -673,8 +792,8 @@ async function initializeFirebase() {
         setupRealtimeListener();
         checkAndRunDailyReset();
         hidePageLoader();
-        
-        // Setup total hall count listener (for welcome page)
+
+
         setupTotalHallListener();
 
     } catch (error) {
@@ -683,23 +802,28 @@ async function initializeFirebase() {
     }
 }
 
-// Function to calculate and display total attendance across all floors
+let totalHallUnsubscribe = null;
+
 function setupTotalHallListener() {
     if (!db) return;
-    
-    const todayDateKey = getTodayDateKey();
+
+    if (totalHallUnsubscribe) {
+        totalHallUnsubscribe();
+        totalHallUnsubscribe = null;
+    }
+
     const attendanceRef = ref(db, `attendance`);
-    
-    onValue(attendanceRef, (snapshot) => {
+
+    const unsubscribe = onValue(attendanceRef, (snapshot) => {
+        const viewDateKey = currentViewDate || getTodayDateKey();
         const data = snapshot.val() || {};
         let grandTotal = 0;
-        
-        // Loop through all floors
+
         ALL_FLOORS.forEach(floor => {
             const floorData = data[`floor_${floor}`];
-            if (floorData && floorData[todayDateKey]) {
-                const dateData = floorData[todayDateKey];
-                // Sum up all rooms for this floor
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+
                 Object.keys(dateData).forEach(roomKey => {
                     if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number') {
                         grandTotal += dateData[roomKey].present_count;
@@ -707,13 +831,11 @@ function setupTotalHallListener() {
                 });
             }
         });
-        
-        // Update the total hall count display
+
         if (totalHallCount) {
             const oldTotal = parseInt(totalHallCount.textContent) || 0;
             totalHallCount.textContent = grandTotal;
-            
-            // Add animation if changed
+
             if (grandTotal !== oldTotal) {
                 totalHallCount.classList.remove('count-pop');
                 void totalHallCount.offsetWidth;
@@ -721,26 +843,27 @@ function setupTotalHallListener() {
             }
         }
     });
+
+    totalHallUnsubscribe = unsubscribe;
 }
 
 function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
-    const isEditable = isViewingToday && isWithinAllowedTime();
+    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn;
 
     if (existingCard) {
         const input = existingCard.querySelector('input');
-        if (input && parseInt(String(input.value).replace(/\D/g, ''), 10) !== currentCount) {
-            if (document.activeElement !== input) {
-                input.value = String(currentCount);
-            }
+        if (input && document.activeElement !== input) {
+            input.value = String(currentCount);
         }
         updateRoomBadge(roomNumber, currentCount);
         updateRoomProgress(roomNumber, currentCount);
         if (input) {
             input.disabled = !isEditable;
-            input.style.opacity = isEditable ? '1' : '0.6';
+            input.style.opacity = isEditable ? '1' : '0.5';
             input.style.cursor = isEditable ? 'text' : 'not-allowed';
+            input.title = !isLoggedIn ? 'Please login to input attendance' : '';
         }
         displayedCounts[roomNumber] = currentCount;
         return;
@@ -759,15 +882,13 @@ function renderRoomCard(roomNumber, currentCount) {
             <input
                 type="text"
                 inputmode="numeric"
-                pattern="[0-9]*"
                 id="input-${roomNumber}"
                 value="${String(currentCount)}"
                 placeholder="0"
                 class="input-number"
                 ${!isEditable ? 'disabled' : ''}
+                ${!isLoggedIn ? 'title="Please login to input attendance"' : ''}
             />
-        </div>
-        <div class="empty-label" id="empty-label-${roomNumber}"> Empty
         </div>
         <div class="mt-3">
             <div class="progress-track" id="progress-${roomNumber}">
@@ -780,70 +901,29 @@ function renderRoomCard(roomNumber, currentCount) {
     const inputElement = card.querySelector(`#input-${roomNumber}`);
 
     function sanitizeAndSave(val) {
+        if (!isLoggedIn) {
+            showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
+            return;
+        }
+
         const digits = String(val ?? '').replace(/\D/g, '');
         let num = digits === '' ? 0 : parseInt(digits, 10);
         if (isNaN(num) || num < 0) num = 0;
         if (num > 6) num = 6;
+
         if (inputElement) inputElement.value = String(num);
         updateAttendance(roomNumber, num);
     }
 
-    // Double-click (desktop) and double-tap (mobile) to toggle empty state
-    function toggleRoomEmpty() {
-        if (!isEditable) return;
-        const isCurrentlyEmpty = card.classList.contains('room-empty');
-        if (isCurrentlyEmpty) {
-            // Restore to editable state
-            card.classList.remove('room-empty');
-            if (inputElement) {
-                inputElement.value = '0';
-                inputElement.focus();
-            }
-            playSound('click');
-            showNotification(`Room ${roomNumber} - Ready for input`, 'info', 2000);
-        } else {
-            // Mark as empty
-            card.classList.add('room-empty');
-            if (inputElement) {
-                inputElement.value = '0';
-            }
-            updateAttendance(roomNumber, 0);
-            playSound('warning');
-            showNotification(`Room ${roomNumber} marked as Empty`, 'danger', 2500);
-        }
-    }
-
-    card.addEventListener('dblclick', (e) => {
-        // Prevent triggering on input element
-        if (e.target.classList.contains('input-number')) return;
-        toggleRoomEmpty();
-    });
-
-    // Mobile: double-tap support
-    let lastTap = 0;
-    card.addEventListener('touchend', (e) => {
-        if (e.target.classList.contains('input-number')) return;
-        const now = Date.now();
-        if (now - lastTap < 400) {
-            e.preventDefault();
-            toggleRoomEmpty();
-            lastTap = 0;
-        } else {
-            lastTap = now;
-        }
-    });
-
     if (isEditable && inputElement) {
         inputElement.addEventListener('input', (event) => {
-            // Remove empty state when user starts typing
-            card.classList.remove('room-empty');
             sanitizeAndSave(event.target.value);
         });
     } else if (inputElement) {
-        inputElement.style.opacity = '0.6';
+        inputElement.style.opacity = '0.5';
         inputElement.style.cursor = 'not-allowed';
     }
-    
+
     updateRoomBadge(roomNumber, currentCount);
     if (roomGrid) roomGrid.appendChild(card);
 }
@@ -868,13 +948,13 @@ function calculateTotal(attendanceData) {
     const total = attendanceData.reduce((sum, doc) => sum + (doc.present_count || 0), 0);
     if (totalCountDisplay) totalCountDisplay.textContent = total;
     animateTotalChange();
-    
+
     if (isViewingToday) {
         checkCapacityAndNotify(total);
     }
 }
 
-// Helper function to get ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+
 function getOrdinalSuffix(num) {
     const n = parseInt(num);
     if (n === 1) return '1st';
@@ -883,45 +963,40 @@ function getOrdinalSuffix(num) {
     return n + 'th';
 }
 
-// Floor selection handler
+
 function selectFloor(floorNumber) {
     if (!floorNumber) return;
-    
+
     currentFloor = parseInt(floorNumber);
     ROOMS = getRoomsForFloor(currentFloor);
     displayedCounts = {};
-    
+
     const floorOrdinal = getOrdinalSuffix(currentFloor);
-    
-    // Update UI
+
+
     if (noFloorMessage) noFloorMessage.classList.add('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
     if (roomContainer) roomContainer.classList.remove('hidden');
     if (loadingStatus) loadingStatus.classList.remove('hidden');
     if (timeNote) timeNote.classList.remove('hidden');
-    
-    // Update titles
+
+
     if (floorTitle) {
         floorTitle.textContent = `Total Students Present on ${floorOrdinal} Floor`;
     }
     if (roomSectionTitle) {
         roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance Inputs`;
     }
-    
-    // Save to localStorage
+
+
     localStorage.setItem('fas_selected_floor', currentFloor);
-    
-    // Re-render rooms for the new floor
     renderInitialRooms();
-    
-    // Setup listener for this floor
     setupRealtimeListener(currentViewDate);
-    
     playSound('success');
     showNotification(`Switched to ${floorOrdinal} Floor`, 'info', 2500);
 }
 
-// Floor select event listener
+
 if (floorSelect) {
     floorSelect.addEventListener('change', (e) => {
         selectFloor(e.target.value);
@@ -930,22 +1005,22 @@ if (floorSelect) {
 
 function setupRealtimeListener(dateKey = null) {
     if (!db) return;
-    if (!currentFloor) return; // Don't setup listener if no floor selected
+    if (!currentFloor) return;
 
     const viewDateKey = dateKey || currentViewDate;
     const todayDateKey = getTodayDateKey();
-    
+
     isViewingToday = (viewDateKey === todayDateKey);
-    
+
     lastNotifiedTotal = 0;
     hasShownInputWindowReminder = false;
-    
+
     const floorOrdinal = getOrdinalSuffix(currentFloor);
-    
+
     if (dateDisplay) {
         dateDisplay.innerHTML = `Viewing: <strong>${floorOrdinal} Floor</strong> | Date: <strong>${formatDisplayDate(viewDateKey)}</strong>`;
     }
-    
+
     if (viewModeIndicator) {
         if (isViewingToday) {
             viewModeIndicator.innerHTML = '<strong>Live View</strong> - Data updates in real-time';
@@ -955,15 +1030,15 @@ function setupRealtimeListener(dateKey = null) {
             viewModeIndicator.className = 'text-xs text-center mt-3 text-blue-600 font-medium';
         }
     }
-    
-    // Include floor in the database path: attendance/floor_X/YYYY-MM-DD/
+
+
     const attendanceRef = ref(db, `attendance/floor_${currentFloor}/${viewDateKey}`);
 
     onValue(attendanceRef, (snapshot) => {
         if (loadingStatus) loadingStatus.classList.add('hidden');
-        
+
         const data = snapshot.val() || {};
-        
+
         if (Object.keys(data).length === 0 && isViewingToday) {
             console.log(`No data found for floor ${currentFloor} today, initializing...`);
             seedInitialRooms();
@@ -975,13 +1050,14 @@ function setupRealtimeListener(dateKey = null) {
             if (totalCountDisplay) totalCountDisplay.textContent = '0';
             return;
         }
-        
+
         const newTotals = [];
 
         ROOMS.forEach(room => {
             const roomKey = `room_${room}`;
             const roomData = data[roomKey];
             const presentCount = roomData ? (roomData.present_count || 0) : 0;
+
             newTotals.push(presentCount);
 
             const existing = document.getElementById(`room_${room}`);
@@ -1020,10 +1096,10 @@ function setupRealtimeListener(dateKey = null) {
 
 async function seedInitialRooms() {
     if (!db || !currentFloor) return;
-    
+
     const todayDateKey = getTodayDateKey();
     console.log(`Initializing database for floor ${currentFloor}, date: ${todayDateKey}`);
-    
+
     const updates = {};
 
     ROOMS.forEach(room => {
@@ -1051,7 +1127,7 @@ async function clearAllAttendance(isManual = false) {
         if (isManual) displayError("Database not initialized. Please wait.");
         return;
     }
-    if (!currentFloor) return; // Need a floor selected
+    if (!currentFloor) return;
 
     if (errorDiv) errorDiv.classList.add('hidden');
     if (loadingStatus) loadingStatus.textContent = 'Auto-reset in progress...';
@@ -1087,7 +1163,7 @@ async function checkAndRunDailyReset() {
     if (!db) return;
 
     const now = new Date();
-    
+
     const targetResetTimeToday = new Date();
     targetResetTimeToday.setHours(18, 0, 0, 0);
 
@@ -1095,7 +1171,7 @@ async function checkAndRunDailyReset() {
         console.log("Auto-reset skipped: Current time is before 6:00 PM.");
         return;
     }
-    
+
     const resetRef = ref(db, 'reset_tracker/last_reset');
 
     try {
@@ -1111,7 +1187,7 @@ async function checkAndRunDailyReset() {
 
         if (!resetAlreadyDone) {
             console.log("Auto-reset triggered: Past 6:00 PM and reset has not run today. Executing reset...");
-            await clearAllAttendance(false); 
+            await clearAllAttendance(false);
         } else {
             console.log("Auto-reset skipped: Already performed today after 6:00 PM.");
         }
@@ -1124,8 +1200,13 @@ async function checkAndRunDailyReset() {
 async function updateAttendance(roomNumber, value) {
     if (!db || !currentFloor) return;
 
+    if (!isLoggedIn) {
+        showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
+        return;
+    }
+
     if (!isWithinAllowedTime()) {
-        displayError('Attendance can only be updated between 6:30 PM to 10:00 PM.');
+        displayError('Attendance can only be updated between 06:30 PM to 9:30 AM.');
         return;
     }
 
@@ -1149,15 +1230,14 @@ async function updateAttendance(roomNumber, value) {
             room: roomNumber,
             floor: currentFloor,
             present_count: count,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            updated_by: userEmail
         });
-        
-        showNotification(`Thank you-Room ${roomNumber} updated (${count})`, 'success', 2500);
+
+        await logRoomUpdate(roomNumber, currentFloor, count);
+
+        showNotification(`Thank you ${userName} - Room ${roomNumber} updated (${count})`, 'success', 2500);
         playSound('success');
-        
-        if (count === 6) {
-            showNotification(`🎉 Room ${roomNumber} is FULL! Great job!`, 'success', 4000);
-        }
 
         try {
             updateRoomBadge(roomNumber, count);
@@ -1187,41 +1267,87 @@ function setDatePickerToToday() {
 
 function initializeDatePicker() {
     setDatePickerToToday();
-    
+
     if (datePicker) {
         datePicker.addEventListener('change', (event) => {
-            if (!currentFloor) {
-                showNotification('Please select a floor first!', 'warning', 3000);
-                return;
-            }
             const selectedDate = new Date(event.target.value + 'T00:00:00');
             currentViewDate = formatDateKey(selectedDate);
-            renderInitialRooms(); // Re-render rooms for consistency
-            setupRealtimeListener(currentViewDate);
+
+            updateTotalForDate();
+
+            if (currentFloor) {
+                renderInitialRooms();
+                setupRealtimeListener(currentViewDate);
+            }
             if (errorDiv) errorDiv.classList.add('hidden');
         });
     }
 
     if (todayBtn) {
         todayBtn.addEventListener('click', () => {
-            if (!currentFloor) {
-                showNotification('Please select a floor first!', 'warning', 3000);
-                return;
-            }
             setDatePickerToToday();
             currentViewDate = getTodayDateKey();
-            renderInitialRooms(); // Re-render rooms for consistency
-            setupRealtimeListener(currentViewDate);
+
+            updateTotalForDate();
+
+            if (currentFloor) {
+                renderInitialRooms();
+                setupRealtimeListener(currentViewDate);
+            }
             if (errorDiv) errorDiv.classList.add('hidden');
         });
     }
 }
 
+async function updateTotalForDate() {
+    if (!db) return;
+
+    const viewDateKey = currentViewDate || getTodayDateKey();
+
+    try {
+        const attendanceRef = ref(db, `attendance`);
+        const snapshot = await get(attendanceRef);
+        const data = snapshot.val() || {};
+        let grandTotal = 0;
+
+        ALL_FLOORS.forEach(floor => {
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number') {
+                        grandTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+        });
+
+        if (totalHallCount) {
+            const oldTotal = parseInt(totalHallCount.textContent) || 0;
+            totalHallCount.textContent = grandTotal;
+            if (grandTotal !== oldTotal) {
+                totalHallCount.classList.remove('count-pop');
+                void totalHallCount.offsetWidth;
+                totalHallCount.classList.add('count-pop');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching total:', error);
+    }
+}
+
 function updateRoomBadge(roomNumber, count) {
     const badge = document.getElementById(`badge-${roomNumber}`);
+    const card = document.getElementById(`room_${roomNumber}`);
     if (!badge) return;
     badge.className = 'room-badge';
-    if (count >= 6) {
+    if (card) card.classList.remove('room-no-one');
+
+    if (count === 0) {
+        badge.textContent = 'No One';
+        badge.classList.add('badge-no-one');
+        if (card) card.classList.add('room-no-one');
+    } else if (count >= 6) {
         badge.textContent = 'Full';
         badge.classList.add('badge-full');
     } else if (count >= 5) {
@@ -1244,7 +1370,7 @@ function updateRoomProgress(roomNumber, count) {
     if (fill) {
         fill.style.width = percent + '%';
         fill.setAttribute('aria-valuenow', count);
-        
+
         if (count >= capacity) {
             fill.classList.add('full');
             if (card) card.classList.add('room-full');
@@ -1266,32 +1392,30 @@ function animateTotalChange() {
 
 function init() {
     updateSoundToggle();
-    
+
     const savedColorTheme = localStorage.getItem('fas_color_theme') || 'indigo';
     applyColorTheme(savedColorTheme);
-    
+
     updateCountdown();
     setInterval(updateCountdown, 1000);
-    
+
     requestNotificationPermission();
-    
+
     checkInputWindowAndNotify();
     setInterval(checkInputWindowAndNotify, 60000);
-    
+
     setTimeout(() => {
         hidePageLoader();
     }, 8000);
-    
-    // Initialize Firebase first
+
+
     initializeFirebase();
     initializeDatePicker();
-    
-    // By default, no floor is selected - user must manually select
-    // Clear any saved floor preference to ensure fresh start
+
     localStorage.removeItem('fas_selected_floor');
     currentFloor = null;
-    
-    // Ensure UI is in default state (nothing shown)
+
+
     if (floorSelect) floorSelect.value = '';
     if (noFloorMessage) noFloorMessage.classList.remove('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');

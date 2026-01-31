@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 body {
     font-family: 'Inter', sans-serif;
@@ -21,10 +21,9 @@ body {
     background-color: var(--bg);
 }
 
-/* Floor Selector Styles */
 #floor-select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 20px;
@@ -54,8 +53,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .app-header {
@@ -97,14 +103,14 @@ body {
 .btn-danger {
     background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    border: 1px solid rgba(0,0,0,0.06);
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .btn-lg {
     padding: 10px 16px;
     font-size: 0.95rem;
     border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(16,24,40,0.08);
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
 }
 
 .btn-compact {
@@ -116,12 +122,17 @@ body {
 }
 
 .btn:focus {
-    outline: 3px solid rgba(99,102,241,0.14);
+    outline: 3px solid rgba(99, 102, 241, 0.14);
     outline-offset: 2px;
 }
 
-.btn-danger:hover { transform: translateY(-2px) scale(1.01); }
-.btn-primary:hover { transform: translateY(-2px) scale(1.01); }
+.btn-danger:hover {
+    transform: translateY(-2px) scale(1.01);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px) scale(1.01);
+}
 
 .page-loader {
     position: fixed;
@@ -158,8 +169,13 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loader-text {
@@ -171,8 +187,15 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
 }
 
 .room-grid::-webkit-scrollbar {
@@ -201,6 +224,7 @@ body {
     align-items: baseline;
     gap: 8px;
 }
+
 .room-title .room-number {
     display: inline-block;
     white-space: nowrap;
@@ -227,7 +251,7 @@ body {
 }
 
 .progress-track {
-    background: rgba(15,23,42,0.05);
+    background: rgba(15, 23, 42, 0.05);
     border-radius: 999px;
     height: 6px;
     overflow: hidden;
@@ -248,23 +272,36 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     animation: shimmer 2s infinite;
 }
 
 @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .count-pop {
-    animation: pop 520ms cubic-bezier(.2,.8,.2,1);
+    animation: pop 520ms cubic-bezier(.2, .8, .2, 1);
 }
 
 @keyframes pop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.18); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.18);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .app-footer {
@@ -281,8 +318,8 @@ input[type="date"] {
 
 .input-saved {
     transform: scale(1.01);
-    box-shadow: 0 8px 24px rgba(16,185,129,0.12);
-    border-color: rgba(16,185,129,0.36) !important;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.36) !important;
     transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
 }
 
@@ -297,9 +334,28 @@ input[type="date"] {
     text-align: center;
 }
 
-.badge-normal { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
-.badge-warning { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
-.badge-full    { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+.badge-normal {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.badge-warning {
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.badge-full {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+.badge-no-one {
+    background: linear-gradient(90deg, #6b7280 0%, #4b5563 100%);
+}
+
+.room-no-one {
+    background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+    border: 2px dashed #9ca3af !important;
+    opacity: 0.7;
+}
+
 
 .room-badge.badge-dot-only {
     min-width: 0 !important;
@@ -311,7 +367,7 @@ input[type="date"] {
     align-items: center;
     justify-content: center;
     background: transparent !important;
-    border: 1px solid rgba(15,23,42,0.06);
+    border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .badge-dot {
@@ -322,11 +378,23 @@ input[type="date"] {
     background: linear-gradient(90deg, #10b981 0%, #059669 100%);
 }
 
-.badge-dot--normal { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
-.badge-dot--warning { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
-.badge-dot--danger  { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+.badge-dot--normal {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
 
-.badge-dot--warning, .badge-dot--danger { width: 12px; height: 12px; }
+.badge-dot--warning {
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.badge-dot--danger {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+.badge-dot--warning,
+.badge-dot--danger {
+    width: 12px;
+    height: 12px;
+}
 
 .room-badge {
     display: none !important;
@@ -354,6 +422,7 @@ input[type="date"] {
         transform: translateY(-100%);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -408,8 +477,16 @@ input[type="date"] {
 }
 
 @media (max-width: 640px) {
-    .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .app-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .room-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
     .input-number {
         font-size: 2rem;
         padding: 12px 16px;
@@ -423,54 +500,112 @@ input[type="date"] {
         width: min(360px, 95vw);
     }
 
-    #total-count-display { font-size: 2.8rem; }
-    .room-card { padding: 10px; }
+    #total-count-display {
+        font-size: 2.8rem;
+    }
+
+    .room-card {
+        padding: 10px;
+    }
 }
+
 .date-row label {
     white-space: normal;
     margin-right: 0;
     display: block;
 }
+
 .date-row input[type="date"] {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
 }
+
 .date-row button,
 .date-row .btn {
     width: 100%;
 }
 
 @media (min-width: 768px) {
-    .date-row { max-width: 420px; }
-    .date-row button, .date-row .btn { width: auto; align-self: flex-end; }
+    .date-row {
+        max-width: 420px;
+    }
+
+    .date-row button,
+    .date-row .btn {
+        width: auto;
+        align-self: flex-end;
+    }
 }
 
 .date-row {
     flex-direction: column !important;
 }
-.date-row label { display: block; }
-.date-row input[type="date"] { display: block; width: 100% !important; max-width: 100% !important; }
-.date-row button, .date-row .btn { display: block; width: 100% !important; }
 
-.date-row > * { margin: 0; }
-.date-row > * + * { margin-top: 8px; }
+.date-row label {
+    display: block;
+}
+
+.date-row input[type="date"] {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.date-row button,
+.date-row .btn {
+    display: block;
+    width: 100% !important;
+}
+
+.date-row>* {
+    margin: 0;
+}
+
+.date-row>*+* {
+    margin-top: 8px;
+}
 
 @media (max-width: 480px) {
-    :root { --card-padding: 12px; }
+    :root {
+        --card-padding: 12px;
+    }
 
-    body { padding: 0.5rem; }
+    body {
+        padding: 0.5rem;
+    }
 
-    .max-w-6xl { padding-left: 8px; padding-right: 8px; }
+    .max-w-6xl {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
 
-    .app-header { padding: 12px; gap: 8px; }
-    .app-header .logo { font-size: 20px; }
-    .app-header h1 { font-size: 1.125rem; }
-    .app-header p { font-size: 0.7rem; }
+    .app-header {
+        padding: 12px;
+        gap: 8px;
+    }
 
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 14px; }
+    .app-header .logo {
+        font-size: 20px;
+    }
 
-    .room-card { padding: 16px; border-radius: 18px; }
+    .app-header h1 {
+        font-size: 1.125rem;
+    }
+
+    .app-header p {
+        font-size: 0.7rem;
+    }
+
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 14px;
+    }
+
+    .room-card {
+        padding: 16px;
+        border-radius: 18px;
+    }
 
     .input-number {
         font-size: 2rem;
@@ -479,18 +614,35 @@ input[type="date"] {
         min-width: 80px;
     }
 
-    .progress-track { height: 8px; }
-    .progress-label { font-size: 11px; }
+    .progress-track {
+        height: 8px;
+    }
 
-    #total-count-display { font-size: 3.5rem; }
+    .progress-label {
+        font-size: 11px;
+    }
 
-    .btn, .btn-lg { padding: 10px 12px; font-size: 0.95rem; }
+    #total-count-display {
+        font-size: 3.5rem;
+    }
 
-    .app-footer { font-size: 0.8rem; margin: 18px auto 8px auto; }
+    .btn,
+    .btn-lg {
+        padding: 10px 12px;
+        font-size: 0.95rem;
+    }
+
+    .app-footer {
+        font-size: 0.8rem;
+        margin: 18px auto 8px auto;
+    }
 }
 
 @media (max-width: 360px) {
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 8px; }
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 8px;
+    }
 
     .input-number {
         font-size: 2rem;
@@ -499,12 +651,23 @@ input[type="date"] {
         min-width: 80px;
     }
 
-    #total-count-display { font-size: 3.1rem; }
+    #total-count-display {
+        font-size: 3.1rem;
+    }
 
-    .app-header h1 { font-size: 1rem; }
-    .app-header p { font-size: 0.65rem; }
+    .app-header h1 {
+        font-size: 1rem;
+    }
 
-    .room-badge { min-width: 52px; font-size: 0.7rem; padding: 5px 8px; }
+    .app-header p {
+        font-size: 0.65rem;
+    }
+
+    .room-badge {
+        min-width: 52px;
+        font-size: 0.7rem;
+        padding: 5px 8px;
+    }
 }
 
 .mobile-controls .inc-btn,
@@ -519,10 +682,16 @@ input[type="date"] {
     border-radius: 8px;
 }
 
-.mobile-controls .inc-btn { transform: translateY(-1px); }
-.mobile-controls .dec-btn { transform: translateY(1px); }
+.mobile-controls .inc-btn {
+    transform: translateY(-1px);
+}
+
+.mobile-controls .dec-btn {
+    transform: translateY(1px);
+}
 
 @media (max-width: 480px) {
+
     .mobile-controls .inc-btn,
     .mobile-controls .dec-btn {
         width: 40px;
@@ -630,9 +799,15 @@ input[type="date"] {
 }
 
 @media (max-width: 420px) {
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 12px; }
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 12px;
+    }
 
-    .room-card { padding: 14px; border-radius: 16px; }
+    .room-card {
+        padding: 14px;
+        border-radius: 16px;
+    }
 
     .input-number {
         font-size: 2rem;
@@ -642,40 +817,85 @@ input[type="date"] {
         text-align: center;
     }
 
-    .input-with-controls { gap: 6px; align-items: center; }
+    .input-with-controls {
+        gap: 6px;
+        align-items: center;
+    }
 
-    .mobile-controls { flex-direction: row; }
+    .mobile-controls {
+        flex-direction: row;
+    }
+
     .mobile-controls .inc-btn,
-    .mobile-controls .dec-btn { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
+    .mobile-controls .dec-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+        border-radius: 6px;
+    }
 
-    .progress-track { height: 6px; }
-    .progress-label { font-size: 10px; }
+    .progress-track {
+        height: 6px;
+    }
 
-    #total-count-display { font-size: 2.8rem; }
+    .progress-label {
+        font-size: 10px;
+    }
 
-    .gradient-card { padding: 14px 12px; border-radius: 16px; }
+    #total-count-display {
+        font-size: 2.8rem;
+    }
 
-    .app-header p { display: none; }
-    .app-header { padding: 8px; gap: 6px; }
+    .gradient-card {
+        padding: 14px 12px;
+        border-radius: 16px;
+    }
 
-    .room-badge { min-width: 44px; font-size: 0.65rem; padding: 4px 6px; }
+    .app-header p {
+        display: none;
+    }
+
+    .app-header {
+        padding: 8px;
+        gap: 6px;
+    }
+
+    .room-badge {
+        min-width: 44px;
+        font-size: 0.65rem;
+        padding: 4px 6px;
+    }
 }
 
 @media (max-width: 320px) {
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 6px; }
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 6px;
+    }
+
     .input-number {
         width: clamp(90px, 70vw, 150px);
         min-width: 80px;
         font-size: 2rem;
         padding: 12px 16px;
     }
-    #total-count-display { font-size: 2.6rem; }
+
+    #total-count-display {
+        font-size: 2.6rem;
+    }
 }
 
 @media (max-width: 420px) {
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 10px; }
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 10px;
+    }
 
-    .room-card { padding: 12px; border-radius: 14px; min-height: 110px; }
+    .room-card {
+        padding: 12px;
+        border-radius: 14px;
+        min-height: 110px;
+    }
 
     .input-number {
         font-size: 2rem;
@@ -684,46 +904,111 @@ input[type="date"] {
         min-width: 80px;
     }
 
-    .input-with-controls { gap: 6px; align-items: center; }
+    .input-with-controls {
+        gap: 6px;
+        align-items: center;
+    }
 
-    .mobile-controls { flex-direction: row; gap: 6px; }
+    .mobile-controls {
+        flex-direction: row;
+        gap: 6px;
+    }
+
     .mobile-controls .inc-btn,
-    .mobile-controls .dec-btn { width: 24px; height: 24px; font-size: 12px; border-radius: 6px; padding: 0; }
+    .mobile-controls .dec-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        border-radius: 6px;
+        padding: 0;
+    }
 
-    .progress-track { height: 5px; }
-    .progress-label { font-size: 10px; }
+    .progress-track {
+        height: 5px;
+    }
 
-    #total-count-display { font-size: 2.7rem; }
-    .gradient-card { padding: 10px 10px; border-radius: 12px; }
+    .progress-label {
+        font-size: 10px;
+    }
 
-    .app-header p { display: none; }
-    .app-header { padding: 6px; gap: 6px; }
+    #total-count-display {
+        font-size: 2.7rem;
+    }
 
-    .room-badge { width: 0; height: 0; padding: 0; margin: 0; }
+    .gradient-card {
+        padding: 10px 10px;
+        border-radius: 12px;
+    }
 
-    .room-card .text-lg { font-size: 1rem; }
-    .room-card .text-sm { font-size: 0.72rem; }
+    .app-header p {
+        display: none;
+    }
 
-    .room-card { box-shadow: 0 3px 8px rgba(0,0,0,0.06); }
+    .app-header {
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .room-badge {
+        width: 0;
+        height: 0;
+        padding: 0;
+        margin: 0;
+    }
+
+    .room-card .text-lg {
+        font-size: 1rem;
+    }
+
+    .room-card .text-sm {
+        font-size: 0.72rem;
+    }
+
+    .room-card {
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+    }
 }
 
 @media (max-width: 420px) {
-    .mobile-controls { display: none !important; }
-    .input-with-controls { justify-content: center; }
-    .input-number { margin-right: 0; }
+    .mobile-controls {
+        display: none !important;
+    }
+
+    .input-with-controls {
+        justify-content: center;
+    }
+
+    .input-number {
+        margin-right: 0;
+    }
 }
 
 @media (max-width: 360px) {
-    .room-grid { grid-template-columns: repeat(1, 1fr); gap: 6px; }
+    .room-grid {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 6px;
+    }
+
     .input-number {
         width: clamp(90px, 65vw, 150px);
         min-width: 80px;
         font-size: 2rem;
         padding: 12px 16px;
     }
-    .mobile-controls .inc-btn, .mobile-controls .dec-btn { width: 22px; height: 22px; }
-    #total-count-display { font-size: 2.5rem; }
-    .room-card { padding: 6px; }
+
+    .mobile-controls .inc-btn,
+    .mobile-controls .dec-btn {
+        width: 22px;
+        height: 22px;
+    }
+
+    #total-count-display {
+        font-size: 2.5rem;
+    }
+
+    .room-card {
+        padding: 6px;
+    }
 }
 
 .confetti-canvas {
@@ -737,7 +1022,8 @@ input[type="date"] {
 }
 
 .countdown-container {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);    border: 2px solid rgba(99, 102, 241, 0.2);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+    border: 2px solid rgba(99, 102, 241, 0.2);
     border-radius: 16px;
     padding: 16px 24px;
     display: flex;
@@ -749,7 +1035,6 @@ input[type="date"] {
     backdrop-filter: blur(8px);
 }
 
-/* Inline countdown container (inside total attendance card) */
 .countdown-container-inline {
     border-left: 2px solid rgba(255, 255, 255, 0.3);
     padding-left: 20px;
@@ -765,7 +1050,6 @@ input[type="date"] {
     animation: countdownUrgent 0.5s ease-in-out infinite;
 }
 
-/* Fixed countdown timer at top right */
 .countdown-fixed {
     position: fixed;
     top: 12px;
@@ -792,14 +1076,17 @@ input[type="date"] {
     animation: countdownUrgent 0.5s ease-in-out infinite;
 }
 
-.dark .countdown-fixed {
-    background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
-    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.5);
-}
 
 @keyframes countdownUrgent {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
 }
 
 @media (max-width: 640px) {
@@ -808,11 +1095,11 @@ input[type="date"] {
         right: 8px;
         padding: 8px 12px;
     }
-    
+
     .countdown-fixed .countdown-timer {
         font-size: 1rem !important;
     }
-    
+
     .countdown-fixed .countdown-status {
         font-size: 0.65rem;
     }
@@ -831,8 +1118,15 @@ input[type="date"] {
 }
 
 @keyframes countdownPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 .countdown-label {
@@ -845,10 +1139,6 @@ input[type="date"] {
     font-weight: 500;
 }
 
-.dark .countdown-container {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
-    border-color: rgba(99, 102, 241, 0.3);
-}
 
 .room-search-container {
     display: flex;
@@ -887,7 +1177,7 @@ input[type="date"] {
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0,0,0,0.1);
+    background: rgba(0, 0, 0, 0.1);
     border: none;
     border-radius: 50%;
     width: 20px;
@@ -901,29 +1191,12 @@ input[type="date"] {
 }
 
 .clear-search-btn:hover {
-    background: rgba(0,0,0,0.2);
+    background: rgba(0, 0, 0, 0.2);
 }
 
-.dark .room-search-input {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.1);
-}
 
-.dark .clear-search-btn {
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
 
-/* Dark mode for tip box */
-.dark .bg-indigo-50 {
-    background: rgba(99, 102, 241, 0.1) !important;
-    border-color: rgba(241, 132, 99, 0.3) !important;
-}
 
-.dark .bg-indigo-50 p,
-.dark .bg-indigo-50 .text-indigo-700 {
-    color: rgba(165, 180, 252, 0.9) !important;
-}
 
 .room-hidden {
     display: none !important;
@@ -942,7 +1215,7 @@ input[type="date"] {
     background: white;
     border-radius: 12px;
     padding: 8px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     display: flex;
     gap: 6px;
     z-index: 100;
@@ -983,14 +1256,7 @@ input[type="date"] {
     transform: scale(1.1);
 }
 
-.dark .color-dropdown {
-    background: #1e293b;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-}
 
-.dark .color-dropdown::before {
-    border-bottom-color: #1e293b;
-}
 
 #sound-toggle {
     font-size: 1.3rem;
@@ -1017,8 +1283,13 @@ input[type="date"] {
 }
 
 @keyframes fullProgress {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 200% 50%;
+    }
 }
 
 .room-card.room-full {
@@ -1027,26 +1298,30 @@ input[type="date"] {
 }
 
 @media (max-width: 480px) {
+
     .color-picker-wrapper,
     #sound-toggle,
     #theme-toggle {
         display: inline-flex !important;
     }
-    
+
     .countdown-container {
         padding: 12px 16px;
     }
-    
+
     .countdown-timer {
         font-size: 1.5rem;
     }
-    
+
     .room-search-input {
         max-width: 200px;
     }
 }
 
-.btn, .room-card, .input-number, .room-search-input {
+.btn,
+.room-card,
+.input-number,
+.room-search-input {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1062,7 +1337,7 @@ input[type="date"] {
     left: 50%;
     width: 0;
     height: 0;
-    background: rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     transition: width 0.3s ease, height 0.3s ease;
@@ -1078,66 +1353,15 @@ input[type="date"] {
 }
 
 @keyframes inputFocus {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
+    0% {
+        transform: scale(1);
+    }
 
-/* Empty Room State */
-.room-card.room-empty {
-    background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%) !important;
-    border: 2px solid #ef4444 !important;
-    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.15);
-}
+    50% {
+        transform: scale(1.02);
+    }
 
-.dark .room-card.room-empty {
-    background: linear-gradient(180deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.2) 100%) !important;
-    border-color: rgba(239, 68, 68, 0.5) !important;
-}
-
-.room-card.room-empty .input-with-controls {
-    display: none !important;
-}
-
-.empty-label {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #dc2626;
-    text-align: center;
-    padding: 12px 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    user-select: none;
-}
-
-.dark .empty-label {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #f87171;
-}
-
-.room-card.room-empty .empty-label {
-    display: flex !important;
-}
-
-.room-card:not(.room-empty) .empty-label {
-    display: none !important;
-}
-
-.room-card {
-    cursor: pointer;
-}
-
-.room-card.room-empty {
-    animation: emptyPulse 2s ease-in-out infinite;
-}
-
-@keyframes emptyPulse {
-    0%, 100% { box-shadow: 0 6px 18px rgba(239, 68, 68, 0.15); }
-    50% { box-shadow: 0 6px 24px rgba(239, 68, 68, 0.25); }
+    100% {
+        transform: scale(1);
+    }
 }

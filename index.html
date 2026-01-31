@@ -13,9 +13,7 @@
     <div id="page-loader" class="page-loader">
         <div class="loader-content">
             <div class="logo-container" style="position: relative; width: 100px; height: 100px; margin: 0 auto 16px auto;">
-                <!-- Grayscale/dim version (background) -->
                 <img src="images/hall.png" alt="Hall" class="logo-bg" style="width: 100px; height: 100px; filter: grayscale(100%) opacity(0.3); position: absolute; top: 0; left: 0;">
-                <!-- Colored version (fills from bottom) -->
                 <img src="images/hall.png" alt="Hall" class="logo-fill" style="width: 100px; height: 100px; position: absolute; top: 0; left: 0; clip-path: inset(100% 0 0 0);">
             </div>
             <p class="loader-text">Welcome to Hall Attendance Tracker</p>
@@ -29,17 +27,17 @@
         <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4">
         </div>
 
-        <!-- Fixed Timer at Top Right -->
         <div id="countdown-container" class="countdown-fixed hidden">
             <div id="countdown-timer" class="countdown-timer text-xl font-bold">--:--:--</div>
             <div id="countdown-status" class="countdown-status text-xs">remaining</div>
         </div>
 
         <div class="max-w-6xl mx-auto mb-6">
-            <header class="app-header p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-3">
+            <header class="app-header p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-3 border-b-2 border-gray-300 pb-4">
                 <div class="flex flex-col gap-2 w-full">
-                    <div class="flex items-center gap-0">
-                        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mr-2">Hall Attendance Tracker</h1>
+                    <div class="flex items-center gap-3">
+                        <img src="images/hall.png" alt="Hall Logo" class="w-10 h-10 sm:w-12 sm:h-12">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Hall Attendance Tracker</h1>
                     </div>
                     <div class="flex items-center gap-2">
                         <button id="sound-toggle" class="btn btn-ghost btn-compact" title="Toggle Sound">🔊</button>
@@ -55,7 +53,7 @@
                                 
                             </div>
                         </div>
-                       
+                        <button id="google-login-btn" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">Login with Google</button>
                     </div>
                 </div>
             </header>
@@ -79,7 +77,6 @@
                 </div>
             </div>
 
-            <!-- Floor Selector -->
             <div id="floor-selector-container" class="bg-white p-4 sm:p-5 rounded-2xl shadow-md mb-4 max-w-xl mx-auto">
                 <label for="floor-select" class="block text-sm font-semibold text-gray-700 mb-2 text-center">🏢 Select Floor</label>
                 <select 
@@ -105,11 +102,9 @@
 
             <p id="loading-status" class="text-sm text-gray-600 mt-1 text-center hidden">Initializing database and loading data...</p>
             <p id="date-display" class="text-xs text-gray-500 mt-1 text-center"></p>
-            <p id="time-note" class="text-sm font-bold text-red-600 mt-1 text-center hidden">Note: Attendance input is only allowed between 6:30 PM to 9:00 PM.</p>
-            
-            <!-- No floor selected - Total Hall Count Card First, then Welcome Message -->
-            <div id="no-floor-message" class="text-center py-8 mt-4">
-                <!-- Total Present in Hall Card (at top) -->
+            <p id="time-note" class="text-sm font-bold text-red-600 mt-1 text-center hidden">Note: Attendance input is only allowed between 6:30 PM to 9:30 PM.</p>
+
+            <div id="no-floor-message" class="text-center py-8 mt-4">       
                 <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl shadow-xl max-w-md mx-auto mb-8">
                     <p class="text-sm uppercase font-medium text-white/90 mb-2 text-center tracking-wider">🏛️ Total Students Present in Hall</p>
                     <div class="flex justify-center items-center">
@@ -122,14 +117,9 @@
         </div>
 
         <div id="room-container" class="max-w-6xl mx-auto hidden">
-            <h2 id="room-section-title" class="text-xl font-bold text-gray-800 mb-4">Room Attendance Inputs</h2>
+            <h2 id="room-section-title" class="text-xl font-bold text-gray-800 mb-4 text-center">Room Attendance Inputs</h2>
             
-            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4 flex items-center gap-2">
-                <span class="text-lg">💡</span>
-                <p class="text-sm text-indigo-700"><strong>Tip:</strong> Double-click on a room card to mark it as <span class="text-red-600 font-bold">Empty</span>. Double-click again to edit.</p>
-            </div>
-            
-            <div class="room-search-container mb-4">
+            <div class="room-search-container mb-4 flex justify-center">
                 <div class="relative">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="room-search" placeholder="Search room number..." class="room-search-input px-10 py-2 border-2 border-gray-300 rounded-lg w-full max-w-xs focus:border-indigo-500 focus:outline-none transition-colors">
@@ -183,14 +173,11 @@
         </div>
     </div>
 
-
-
-    <!-- Preloader with logo fill animation -->
     <script>
     (function() {
         let progress = 0;
-        const duration = 2000; // 2 seconds
-        const interval = 20; // Update every 20ms
+        const duration = 2000;
+        const interval = 20;
         const steps = duration / interval;
         const increment = 100 / steps;
 
@@ -202,7 +189,7 @@
 
             const percent = Math.round(progress);
             
-            // Update clip-path to reveal logo from bottom to top
+
             if (logoFill) {
                 const clipValue = 100 - percent;
                 logoFill.style.clipPath = `inset(${clipValue}% 0 0 0)`;
@@ -213,12 +200,12 @@
             }
         }
 
-        // Start animation
+
         updateProgress();
     })();
 
     window.addEventListener('load', function () {
-        // Hide preloader after animation completes
+
         setTimeout(function () {
             const preloader = document.getElementById('page-loader');
             if (preloader) {
@@ -231,5 +218,13 @@
     </script>
 
     <script type="module" src="app.js"></script>
+
+    <footer class="w-full py-6 mt-10 text-center text-gray-600 text-sm border-t-2 border-gray-300 bg-gray-50">
+        <p>Maintenance and developed by 
+            <a href="https://www.linkedin.com/in/mueid16/" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors">
+                Md. Mueid Shahriar
+            </a>
+        </p>
+    </footer>
 </body>
 </html>

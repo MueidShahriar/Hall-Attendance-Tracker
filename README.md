@@ -1,4 +1,4 @@
-# Hall Attendance Tracker
+# Floor Attendance Manager
 
 This project provides a real‑time, browser‑based attendance management system designed for floor‑level student accommodation tracking. It allows operators to record, review, and manage room‑wise attendance efficiently, with automated resets, activity logs, notifications, and responsive UI behavior.
 
