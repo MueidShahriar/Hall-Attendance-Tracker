@@ -1,154 +1,180 @@
 # Hall Attendance Tracker
 
-This project provides a real‑time, browser‑based attendance management system designed for floor‑level student accommodation tracking. It allows operators to record, review, and manage room‑wise attendance efficiently, with automated resets, activity logs, notifications, and responsive UI behavior.
+A real-time, browser-based attendance management system for multi-floor student hall accommodation. Track room-wise attendance efficiently with Google authentication, activity logging and responsive UI.
 
 ---
 
 ## 🚀 Features
 
-### **1. Real‑Time Attendance Updates**
-- Uses Firebase Realtime Database for instant sync across all connected clients.
-- Displays up‑to‑date student counts for each room.
-- Total attendance automatically recalculates and visually updates.
+### **1. Real-Time Attendance Updates**
+- Firebase Realtime Database for instant sync across all clients
+- Live student counts for each room
+- Total attendance auto-recalculates across all floors
 
-### **2. Room‑Wise Attendance Controls**
-- Each room supports input from **0 to 6 students**.
-- Validation ensures incorrect values cannot be entered.
-- Visual progress indicators reflect room occupancy.
+### **2. Multi-Floor Support**
+- Supports floors 2-5 with room-wise tracking
+- Floor selector dropdown
+- Per-floor and total hall attendance display
 
-### **3. Daily Auto‑Reset System**
-- Automatic reset at **6:00 PM** if not already performed.
-- Logs reset events into an activity log.
-- Manual reset logic included (if triggered programmatically).
+### **3. Room-Wise Attendance Controls**
+- Each room supports **0 to 6 students**
+- Visual badges: "No One", "Open", "Near-full", "Full"
+- Progress bars showing room occupancy
+- Rooms with 0 students shown with dashed border styling
 
-### **4. Attendance Input Time Window**
-- Optional restriction to allow updates only between **7:00 PM – 9:00 PM**.
-- Customized alert and warning notifications.
+### **4. Google Authentication**
+- Login with Google account required to input attendance
+- User name displayed in green button after login
+- Login persists across sessions (no logout required)
+- "Thank you [Name]" notification on room update
 
-### **5. Activity Log Viewer**
-- Displays historical update actions.
-- Filterable by **date**, **user**, and **room number**.
-- Helps administrators audit system usage.
+### **5. Attendance Input Time Window**
+- Updates allowed only between **10:30 PM – 5:00 AM**
+- Countdown timer shows time until window opens/closes
+- Inputs disabled outside allowed time
 
-### **6. Notifications System**
-- Capacity alerts (80%, 95%, full).
-- Attendance‑time‑window reminders.
-- Success and error notifications for user actions.
+### **6. Activity Logging to Firebase**
+- **User Logins**: Records email, name, login time
+- **Room Updates**: Logs each update with room, floor, count, timestamp
+- **User Stats**: Tracks total update count per user
 
-### **7. Theme Support (Light/Dark)**
-- Includes a toggle button and saves user preference.
-- Full UI adapts dynamically.
+### **7. Date-Based Viewing**
+- View attendance for any previous date
+- Total hall count updates based on selected date
+- Today button for quick reset to current date
 
-### **8. Mobile‑Optimized Interface**
-- Responsive layout for small screens.
-- Larger inputs and simplified controls on mobile.
+### **8. Notifications System**
+- Capacity alerts (full room celebration)
+- Login reminders
+- Success/error notifications with sounds
+
+### **9. Mobile-Optimized Interface**
+- Responsive layout for all screen sizes
+- Touch-friendly inputs and controls
 
 ---
 
 ## 🧱 Project Structure
 
 ```
-├── fas.html        # Main application UI and JS logic
-├── styles.css      # Custom UI styles and overrides
-├── README.md       # Project documentation (this file)
+├── index.html      # Main application UI
+├── app.js          # Application logic and Firebase integration
+├── styles.css      # Custom UI styles
+├── images/         # Logo and assets
+└── README.md       # Documentation
 ```
-
-- **HTML file** contains UI layout, Firebase initialization, all interaction logic, and rendering.
-- **CSS file** provides design, theme rules, animations, and responsive behavior.
 
 ---
 
 ## 🔧 Technologies Used
 
-- **Firebase Realtime Database** – For real‑time sync and structured data.
-- **TailwindCSS CDN** – Utility‑based responsive styling.
-- **Vanilla JavaScript (ES Module)** – Logic for UI updates, CRUD, listeners.
-- **HTML5 / CSS3** – Core UI.
+- **Firebase Realtime Database** – Real-time data sync
+- **Firebase Authentication** – Google Sign-In
+- **TailwindCSS CDN** – Utility-based styling
+- **Vanilla JavaScript (ES Modules)** – Application logic
+- **HTML5 / CSS3** – Core UI
 
 ---
 
 ## 🛠️ Setup Instructions
 
-### **1. Clone or Download the Files**
-Place the following files in the same directory:
-- `fas.html`
-- `styles.css`
-- `README.md`
+### **1. Clone the Repository**
+```bash
+git clone https://github.com/your-repo/Hall-Attendance-Tracker.git
+cd Hall-Attendance-Tracker
+```
 
 ### **2. Configure Firebase**
-The Firebase config block is already embedded in `fas.html`:
+Update Firebase config in `app.js`:
 ```js
 const firebaseConfig = {
-    apiKey: "...",
-    authDomain: "...",
-    databaseURL: "...",
-    projectId: "...",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "...",
-    measurementId: "..."
+    apiKey: "your-api-key",
+    authDomain: "your-project.firebaseapp.com",
+    databaseURL: "https://your-project.firebaseio.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project.appspot.com",
+    messagingSenderId: "your-sender-id",
+    appId: "your-app-id"
 };
 ```
-Update the values above if using a different Firebase project.
 
 ### **3. Run the System**
-Simply open `fas.html` in any modern browser.
-No local server is required.
+Open `index.html` in any modern browser. No local server required.
 
 ---
 
 ## 📦 Database Structure
-The system stores data using the following paths:
 
 ### **Attendance Data**
 ```
 attendance/
-  └── YYYY-MM-DD/
-        └── room_402/ { room, present_count, updated_by, timestamp }
-        └── room_403/ ...
-        ...
+  └── floor_3/
+        └── 2026-02-01/
+              └── room_301/ { room, floor, present_count, updated_by, timestamp }
+              └── room_302/ ...
+```
+
+### **User Logins**
+```
+user_logins/
+   └── <timestamp>/ { email, name, user_id, login_time, date }
+```
+
+### **Room Updates Log**
+```
+room_updates/
+   └── <timestamp>/ { email, name, user_id, room, floor, count, timestamp, date }
+```
+
+### **User Statistics**
+```
+user_stats/
+   └── <email_key>/ { email, name, update_count, last_update, last_room, last_floor }
 ```
 
 ### **Activity Logs**
 ```
 activity_logs/
-   └── <timestamp>/ { user, action, details, timestamp, date }
-```
-
-### **Email Reminders (Optional)**
-```
-email_reminders/
-   └── <timestamp>/ { user, email, type, timestamp, date, message }
-```
-
-### **Reset Tracker**
-```
-reset_tracker/
-   └── last_reset: <ISO timestamp>
+   └── <user_id>/
+         └── <timestamp>/ { user, name, action, timestamp }
 ```
 
 ---
 
-## 🔐 User & Security Considerations
-- The system currently assigns `system` as the default user unless authentication is added.
-- For production usage, consider integrating Firebase Authentication.
+## 🔐 Authentication
+
+- Google Sign-In required for attendance input
+- Login persists using Firebase Auth state
+- User email stored with each update for audit trail
 
 ---
 
-## 📱 Responsive Behavior
-- Automatic single‑column layout on small screens.
-- Enlarged controls for touch devices.
-- Reduced clutter for mobile view.
+## ⏰ Time Restrictions
+
+- **Allowed Input Window**: 10:30 PM to 5:00 AM
+- Countdown timer displays remaining time
+- Inputs automatically disabled outside window
 
 ---
 
-## 📝 Future Improvements
-- User authentication & role permissions.
-- Exportable attendance logs (CSV / PDF).
-- Multi‑floor support.
-- Push notifications for late submissions.
+## 📱 Room Status Indicators
+
+| Badge | Meaning |
+|-------|---------|
+| No One (Grey) | 0 students |
+| Open (Green) | 1-4 students |
+| Near-full (Orange) | 5 students |
+| Full (Red) | 6 students |
+
+---
+
+## 👨‍💻 Developer
+
+**Md. Mueid Shahriar**  
+[LinkedIn](https://www.linkedin.com/in/mdmueid/)
 
 ---
 
 ## 📄 License
-This project is provided for educational and operational use. Licensing can be added as needed.
+
+This project is provided for educational and operational use.
