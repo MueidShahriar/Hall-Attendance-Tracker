@@ -825,7 +825,7 @@ function setupTotalHallListener() {
                 const dateData = floorData[viewDateKey];
 
                 Object.keys(dateData).forEach(roomKey => {
-                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number') {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
                         grandTotal += dateData[roomKey].present_count;
                     }
                 });
@@ -842,20 +842,65 @@ function setupTotalHallListener() {
                 totalHallCount.classList.add('count-pop');
             }
         }
+
+        // Update individual floor cards
+        ALL_FLOORS.forEach(floor => {
+            let floorTotal = 0;
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        floorTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+            updateFloorCard(floor, floorTotal);
+        });
     });
 
     totalHallUnsubscribe = unsubscribe;
+}
+
+function updateFloorCard(floorNumber, count) {
+    const countEl = document.getElementById(`floor-count-${floorNumber}`);
+    const badgeEl = document.getElementById(`floor-badge-${floorNumber}`);
+    const cardEl = document.getElementById(`floor-card-${floorNumber}`);
+    
+    if (countEl) {
+        const oldCount = parseInt(countEl.textContent) || 0;
+        countEl.textContent = count;
+        if (count !== oldCount) {
+            countEl.classList.remove('count-pop');
+            void countEl.offsetWidth;
+            countEl.classList.add('count-pop');
+        }
+    }
+    
+    if (badgeEl) {
+        badgeEl.className = 'floor-badge';
+        if (count === 0) {
+            badgeEl.textContent = 'Empty';
+            badgeEl.classList.add('badge-empty');
+            if (cardEl) cardEl.classList.add('floor-empty');
+        } else {
+            badgeEl.textContent = 'Active';
+            badgeEl.classList.add('badge-active');
+            if (cardEl) cardEl.classList.remove('floor-empty');
+        }
+    }
 }
 
 function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
     const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn;
+    const displayValue = (currentCount === null || currentCount === undefined) ? '-' : String(currentCount);
 
     if (existingCard) {
         const input = existingCard.querySelector('input');
         if (input && document.activeElement !== input) {
-            input.value = String(currentCount);
+            input.value = displayValue;
         }
         updateRoomBadge(roomNumber, currentCount);
         updateRoomProgress(roomNumber, currentCount);
@@ -883,8 +928,8 @@ function renderRoomCard(roomNumber, currentCount) {
                 type="text"
                 inputmode="numeric"
                 id="input-${roomNumber}"
-                value="${String(currentCount)}"
-                placeholder="0"
+                value="${displayValue}"
+                placeholder="-"
                 class="input-number"
                 ${!isEditable ? 'disabled' : ''}
                 ${!isLoggedIn ? 'title="Please login to input attendance"' : ''}
@@ -894,7 +939,7 @@ function renderRoomCard(roomNumber, currentCount) {
             <div class="progress-track" id="progress-${roomNumber}">
                 <div class="progress-fill" style="width: 0%;"></div>
             </div>
-            <div class="progress-label text-xs text-gray-500 mt-1" id="progress-label-${roomNumber}">0/6</div>
+            <div class="progress-label text-xs text-gray-500 mt-1" id="progress-label-${roomNumber}">-/6</div>
         </div>
     `;
 
@@ -909,7 +954,13 @@ function renderRoomCard(roomNumber, currentCount) {
         const digits = String(val ?? '').replace(/\D/g, '');
         let num = digits === '' ? 0 : parseInt(digits, 10);
         if (isNaN(num) || num < 0) num = 0;
-        if (num > 6) num = 6;
+        
+        // If input is greater than 6, don't accept it
+        if (num > 6) {
+            showNotification('⚠️ Maximum 6 students allowed per room', 'warning', 2000);
+            if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
+            return;
+        }
 
         if (inputElement) inputElement.value = String(num);
         updateAttendance(roomNumber, num);
@@ -918,6 +969,13 @@ function renderRoomCard(roomNumber, currentCount) {
     if (isEditable && inputElement) {
         inputElement.addEventListener('input', (event) => {
             sanitizeAndSave(event.target.value);
+        });
+        // Move cursor to end when clicking on input
+        inputElement.addEventListener('focus', (event) => {
+            setTimeout(() => {
+                const len = inputElement.value.length;
+                inputElement.setSelectionRange(len, len);
+            }, 0);
         });
     } else if (inputElement) {
         inputElement.style.opacity = '0.5';
@@ -936,8 +994,8 @@ function renderInitialRooms() {
     }
     roomGrid.innerHTML = '';
     ROOMS.forEach(room => {
-        renderRoomCard(room, 0);
-        displayedCounts[room] = 0;
+        renderRoomCard(room, null);
+        displayedCounts[room] = null;
     });
     if (totalCountDisplay) {
         totalCountDisplay.textContent = '0';
@@ -1056,12 +1114,16 @@ function setupRealtimeListener(dateKey = null) {
         ROOMS.forEach(room => {
             const roomKey = `room_${room}`;
             const roomData = data[roomKey];
-            const presentCount = roomData ? (roomData.present_count || 0) : 0;
+            // Use null if no data exists, otherwise use the present_count
+            const presentCount = roomData && typeof roomData.present_count === 'number' ? roomData.present_count : null;
 
-            newTotals.push(presentCount);
+            // Only add to total if it's a valid number >= 1
+            if (presentCount !== null && presentCount >= 1) {
+                newTotals.push(presentCount);
+            }
 
             const existing = document.getElementById(`room_${room}`);
-            const prev = typeof displayedCounts[room] === 'number' ? displayedCounts[room] : null;
+            const prev = displayedCounts[room];
 
             if (!existing) {
                 renderRoomCard(room, presentCount);
@@ -1070,10 +1132,11 @@ function setupRealtimeListener(dateKey = null) {
                 return;
             }
 
-            if (prev === null || prev !== presentCount) {
+            if (prev !== presentCount) {
                 const inputEl = existing.querySelector(`#input-${room}`);
+                const displayValue = (presentCount === null || presentCount === undefined) ? '-' : String(presentCount);
                 if (inputEl && document.activeElement !== inputEl) {
-                    inputEl.value = String(presentCount);
+                    inputEl.value = displayValue;
                 }
                 updateRoomBadge(room, presentCount);
                 updateRoomProgress(room, presentCount);
@@ -1315,7 +1378,7 @@ async function updateTotalForDate() {
             if (floorData && floorData[viewDateKey]) {
                 const dateData = floorData[viewDateKey];
                 Object.keys(dateData).forEach(roomKey => {
-                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number') {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
                         grandTotal += dateData[roomKey].present_count;
                     }
                 });
@@ -1331,6 +1394,21 @@ async function updateTotalForDate() {
                 totalHallCount.classList.add('count-pop');
             }
         }
+
+        // Update individual floor cards for date change
+        ALL_FLOORS.forEach(floor => {
+            let floorTotal = 0;
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        floorTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+            updateFloorCard(floor, floorTotal);
+        });
     } catch (error) {
         console.error('Error fetching total:', error);
     }
@@ -1341,21 +1419,16 @@ function updateRoomBadge(roomNumber, count) {
     const card = document.getElementById(`room_${roomNumber}`);
     if (!badge) return;
     badge.className = 'room-badge';
-    if (card) card.classList.remove('room-no-one');
+    if (card) card.classList.remove('room-empty');
 
-    if (count === 0) {
-        badge.textContent = 'No One';
-        badge.classList.add('badge-no-one');
-        if (card) card.classList.add('room-no-one');
-    } else if (count >= 6) {
-        badge.textContent = 'Full';
-        badge.classList.add('badge-full');
-    } else if (count >= 5) {
-        badge.textContent = 'Near-full';
-        badge.classList.add('badge-warning');
+    // null or undefined means no input yet (show '-')
+    if (count === null || count === undefined || count === 0) {
+        badge.textContent = '-';
+        badge.classList.add('badge-empty');
+        if (card) card.classList.add('room-empty');
     } else {
-        badge.textContent = 'Open';
-        badge.classList.add('badge-normal');
+        badge.textContent = 'Active';
+        badge.classList.add('badge-active');
     }
 }
 
@@ -1365,13 +1438,16 @@ function updateRoomProgress(roomNumber, count) {
     const card = document.getElementById(`room_${roomNumber}`);
     if (!track || !label) return;
     const capacity = 6;
-    const percent = Math.min(100, Math.round((count / capacity) * 100));
+    // Handle null/undefined as no progress
+    const actualCount = (count === null || count === undefined) ? 0 : count;
+    const percent = Math.min(100, Math.round((actualCount / capacity) * 100));
+    const displayLabel = (count === null || count === undefined) ? '-' : actualCount;
     const fill = track.querySelector('.progress-fill');
     if (fill) {
         fill.style.width = percent + '%';
-        fill.setAttribute('aria-valuenow', count);
+        fill.setAttribute('aria-valuenow', actualCount);
 
-        if (count >= capacity) {
+        if (actualCount >= capacity) {
             fill.classList.add('full');
             if (card) card.classList.add('room-full');
         } else {
@@ -1379,7 +1455,7 @@ function updateRoomProgress(roomNumber, count) {
             if (card) card.classList.remove('room-full');
         }
     }
-    label.textContent = `${count}/${capacity}`;
+    label.textContent = `${displayLabel}/${capacity}`;
 }
 
 function animateTotalChange() {
