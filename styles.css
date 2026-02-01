@@ -234,21 +234,36 @@ body {
 }
 
 .floor-badge {
-    padding: 3px 10px;
+    padding: 6px;
     border-radius: 9999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.floor-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.floor-dot-green {
+    background-color: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.floor-dot-red {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
 .floor-badge.badge-active {
-    background-color: #dcfce7;
-    color: #16a34a;
+    background-color: transparent;
 }
 
 .floor-badge.badge-empty {
-    background-color: #fee2e2;
-    color: #dc2626;
+    background-color: transparent;
 }
 
 .floor-card.floor-empty {

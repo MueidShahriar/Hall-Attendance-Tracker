@@ -880,11 +880,11 @@ function updateFloorCard(floorNumber, count) {
     if (badgeEl) {
         badgeEl.className = 'floor-badge';
         if (count === 0) {
-            badgeEl.textContent = 'Empty';
+            badgeEl.innerHTML = '<span class="floor-dot floor-dot-red"></span>';
             badgeEl.classList.add('badge-empty');
             if (cardEl) cardEl.classList.add('floor-empty');
         } else {
-            badgeEl.textContent = 'Active';
+            badgeEl.innerHTML = '<span class="floor-dot floor-dot-green"></span>';
             badgeEl.classList.add('badge-active');
             if (cardEl) cardEl.classList.remove('floor-empty');
         }
