@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
 
@@ -525,27 +525,74 @@ function setupGoogleLogin(auth) {
     const googleLoginBtn = document.getElementById('google-login-btn');
     if (!googleLoginBtn) return;
 
-    googleLoginBtn.addEventListener('click', async () => {
-        try {
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
+    // Check for redirect result first (for mobile devices that used redirect)
+    getRedirectResult(auth).then((result) => {
+        if (result && result.user) {
             const user = result.user;
             userId = user.uid;
             userEmail = user.email || 'Google User';
             userName = user.displayName || 'User';
             isLoggedIn = true;
 
-            logActivity(`User logged in: ${userEmail}`);
+            logActivity(`User logged in via redirect: ${userEmail}`);
             logUserLogin();
             showNotification(`Welcome ${userName}! You can now input attendance.`, 'success', 3000);
             googleLoginBtn.textContent = `✓ ${userName}`;
             googleLoginBtn.disabled = true;
             googleLoginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
             googleLoginBtn.classList.add('bg-green-600', 'cursor-default');
-
             updateInputsBasedOnLogin();
+        }
+    }).catch((error) => {
+        console.error('Redirect result error:', error);
+        // Show specific error messages for common issues
+        if (error.code === 'auth/unauthorized-domain') {
+            showNotification('⚠️ Domain not authorized in Firebase. Please contact admin.', 'danger', 5000);
+        } else if (error.code === 'auth/operation-not-allowed') {
+            showNotification('⚠️ Google Sign-In is not enabled. Please contact admin.', 'danger', 5000);
+        } else if (error.code) {
+            showNotification(`Login error: ${error.code}`, 'danger', 5000);
+        }
+    });
+
+    googleLoginBtn.addEventListener('click', async () => {
+        // Show loading state
+        const originalText = googleLoginBtn.textContent;
+        googleLoginBtn.textContent = 'Logging in...';
+        googleLoginBtn.disabled = true;
+
+        try {
+            const provider = new GoogleAuthProvider();
+            // Add prompt to always show account chooser
+            provider.setCustomParameters({
+                prompt: 'select_account'
+            });
+
+            // Always use redirect - more reliable across all devices and browsers
+            // This works better with Vercel and avoids popup blocking issues
+            await signInWithRedirect(auth, provider);
+
         } catch (error) {
-            showNotification(`Login failed: ${error.message}`, 'danger', 3000);
+            console.error('Login error:', error);
+            
+            // Reset button state
+            googleLoginBtn.textContent = originalText;
+            googleLoginBtn.disabled = false;
+            
+            // Show specific error messages
+            if (error.code === 'auth/unauthorized-domain') {
+                showNotification('⚠️ This domain is not authorized. Please contact admin.', 'danger', 5000);
+                console.error('Add this domain to Firebase Auth > Settings > Authorized domains:', window.location.hostname);
+            } else if (error.code === 'auth/operation-not-allowed') {
+                showNotification('⚠️ Google Sign-In is not enabled in Firebase.', 'danger', 5000);
+            } else if (error.code === 'auth/popup-blocked') {
+                showNotification('⚠️ Popup was blocked. Trying redirect...', 'info', 3000);
+                await signInWithRedirect(auth, provider);
+            } else if (error.code === 'auth/network-request-failed') {
+                showNotification('⚠️ Network error. Please check your internet connection.', 'danger', 5000);
+            } else {
+                showNotification(`Login failed: ${error.message}`, 'danger', 5000);
+            }
         }
     });
 
