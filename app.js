@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
@@ -421,6 +421,96 @@ function formatDisplayDate(dateKey) {
     });
 }
 
+// Data retention policy: Keep only last 20 days of data
+const DATA_RETENTION_DAYS = 20;
+
+async function cleanupOldData() {
+    if (!db) return;
+
+    const today = new Date();
+    const cutoffDate = new Date(today);
+    cutoffDate.setDate(today.getDate() - DATA_RETENTION_DAYS);
+
+    console.log(`Running data cleanup... Removing data older than ${DATA_RETENTION_DAYS} days (before ${formatDateKey(cutoffDate)})`);
+
+    try {
+        // Cleanup attendance data
+        for (const floor of ALL_FLOORS) {
+            const floorRef = ref(db, `attendance/floor_${floor}`);
+            const snapshot = await get(floorRef);
+            const floorData = snapshot.val();
+
+            if (floorData) {
+                for (const dateKey of Object.keys(floorData)) {
+                    const [year, month, day] = dateKey.split('-').map(Number);
+                    const recordDate = new Date(year, month - 1, day);
+
+                    if (recordDate < cutoffDate) {
+                        const dateRef = ref(db, `attendance/floor_${floor}/${dateKey}`);
+                        await remove(dateRef);
+                        console.log(`Deleted old attendance data: floor_${floor}/${dateKey}`);
+                    }
+                }
+            }
+        }
+
+        // Cleanup activity logs (timestamp-based)
+        const activityLogsRef = ref(db, 'activity_logs');
+        const activitySnapshot = await get(activityLogsRef);
+        const activityData = activitySnapshot.val();
+
+        if (activityData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const userId of Object.keys(activityData)) {
+                const userLogs = activityData[userId];
+                for (const timestamp of Object.keys(userLogs)) {
+                    if (parseInt(timestamp) < cutoffTimestamp) {
+                        const logRef = ref(db, `activity_logs/${userId}/${timestamp}`);
+                        await remove(logRef);
+                    }
+                }
+            }
+            console.log('Cleaned up old activity logs');
+        }
+
+        // Cleanup room updates (timestamp-based)
+        const roomUpdatesRef = ref(db, 'room_updates');
+        const roomUpdatesSnapshot = await get(roomUpdatesRef);
+        const roomUpdatesData = roomUpdatesSnapshot.val();
+
+        if (roomUpdatesData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const timestamp of Object.keys(roomUpdatesData)) {
+                if (parseInt(timestamp) < cutoffTimestamp) {
+                    const updateRef = ref(db, `room_updates/${timestamp}`);
+                    await remove(updateRef);
+                }
+            }
+            console.log('Cleaned up old room updates');
+        }
+
+        // Cleanup user logins (timestamp-based)
+        const userLoginsRef = ref(db, 'user_logins');
+        const userLoginsSnapshot = await get(userLoginsRef);
+        const userLoginsData = userLoginsSnapshot.val();
+
+        if (userLoginsData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const timestamp of Object.keys(userLoginsData)) {
+                if (parseInt(timestamp) < cutoffTimestamp) {
+                    const loginRef = ref(db, `user_logins/${timestamp}`);
+                    await remove(loginRef);
+                }
+            }
+            console.log('Cleaned up old user logins');
+        }
+
+        console.log('Data cleanup completed successfully!');
+    } catch (error) {
+        console.error('Error during data cleanup:', error);
+    }
+}
+
 function getMinutesSinceMidnight(date = new Date()) {
     return date.getHours() * 60 + date.getMinutes();
 }
@@ -805,6 +895,8 @@ async function initializeFirebase() {
         checkAndRunDailyReset();
         hidePageLoader();
 
+        // Run data cleanup on app initialization (async, non-blocking)
+        cleanupOldData();
 
         setupTotalHallListener();
 
