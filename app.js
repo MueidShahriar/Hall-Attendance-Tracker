@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
 
@@ -33,11 +32,11 @@ let sentNotifications = {
 let activityLog = [];
 let displayedCounts = {};
 let currentUnsubscribe = null;
-let isLoggedIn = false;
+let isLoggedIn = true;
 
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = (21 * 60) + 30;
+const ALLOWED_END_MINUTES = (22 * 60);
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
 
@@ -46,15 +45,10 @@ function getRoomsForFloor(floorNumber) {
     const baseRoom = floorNumber * 100 + 2;
     const rooms = Array.from({ length: 16 }, (_, i) => baseRoom + i);
 
-    // Rooms to exclude (no students stay here)
     const excludedRooms = [
-        // 1st floor: 102-106 and 116
         102, 103, 104, 105, 106, 116,
-        // 2nd floor: 203
         203,
-        // 5th floor: 502-505
         502, 503, 504, 505,
-        // 6th floor: 602-605
         602, 603, 604, 605
     ];
 
@@ -421,7 +415,6 @@ function formatDisplayDate(dateKey) {
     });
 }
 
-// Data retention policy: Keep only last 20 days of data
 const DATA_RETENTION_DAYS = 20;
 
 async function cleanupOldData() {
@@ -434,7 +427,6 @@ async function cleanupOldData() {
     console.log(`Running data cleanup... Removing data older than ${DATA_RETENTION_DAYS} days (before ${formatDateKey(cutoffDate)})`);
 
     try {
-        // Cleanup attendance data
         for (const floor of ALL_FLOORS) {
             const floorRef = ref(db, `attendance/floor_${floor}`);
             const snapshot = await get(floorRef);
@@ -454,7 +446,6 @@ async function cleanupOldData() {
             }
         }
 
-        // Cleanup activity logs (timestamp-based)
         const activityLogsRef = ref(db, 'activity_logs');
         const activitySnapshot = await get(activityLogsRef);
         const activityData = activitySnapshot.val();
@@ -473,7 +464,6 @@ async function cleanupOldData() {
             console.log('Cleaned up old activity logs');
         }
 
-        // Cleanup room updates (timestamp-based)
         const roomUpdatesRef = ref(db, 'room_updates');
         const roomUpdatesSnapshot = await get(roomUpdatesRef);
         const roomUpdatesData = roomUpdatesSnapshot.val();
@@ -489,7 +479,6 @@ async function cleanupOldData() {
             console.log('Cleaned up old room updates');
         }
 
-        // Cleanup user logins (timestamp-based)
         const userLoginsRef = ref(db, 'user_logins');
         const userLoginsSnapshot = await get(userLoginsRef);
         const userLoginsData = userLoginsSnapshot.val();
@@ -521,124 +510,17 @@ function isWithinAllowedTime() {
     return minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES;
 }
 
-function setupGoogleLogin(auth) {
-    const googleLoginBtn = document.getElementById('google-login-btn');
-    if (!googleLoginBtn) return;
-
-    // Check for redirect result first (for mobile devices that used redirect)
-    getRedirectResult(auth).then((result) => {
-        if (result && result.user) {
-            const user = result.user;
-            userId = user.uid;
-            userEmail = user.email || 'Google User';
-            userName = user.displayName || 'User';
-            isLoggedIn = true;
-
-            logActivity(`User logged in via redirect: ${userEmail}`);
-            logUserLogin();
-            showNotification(`Welcome ${userName}! You can now input attendance.`, 'success', 3000);
-            googleLoginBtn.textContent = `✓ ${userName}`;
-            googleLoginBtn.disabled = true;
-            googleLoginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-            googleLoginBtn.classList.add('bg-green-600', 'cursor-default');
-            updateInputsBasedOnLogin();
-        }
-    }).catch((error) => {
-        console.error('Redirect result error:', error);
-        // Show specific error messages for common issues
-        if (error.code === 'auth/unauthorized-domain') {
-            showNotification('⚠️ Domain not authorized in Firebase. Please contact admin.', 'danger', 5000);
-        } else if (error.code === 'auth/operation-not-allowed') {
-            showNotification('⚠️ Google Sign-In is not enabled. Please contact admin.', 'danger', 5000);
-        } else if (error.code) {
-            showNotification(`Login error: ${error.code}`, 'danger', 5000);
-        }
-    });
-
-    googleLoginBtn.addEventListener('click', async () => {
-        // Show loading state
-        const originalText = googleLoginBtn.textContent;
-        googleLoginBtn.textContent = 'Logging in...';
-        googleLoginBtn.disabled = true;
-
-        try {
-            const provider = new GoogleAuthProvider();
-            // Add prompt to always show account chooser
-            provider.setCustomParameters({
-                prompt: 'select_account'
-            });
-
-            // Always use redirect - more reliable across all devices and browsers
-            // This works better with Vercel and avoids popup blocking issues
-            await signInWithRedirect(auth, provider);
-
-        } catch (error) {
-            console.error('Login error:', error);
-            
-            // Reset button state
-            googleLoginBtn.textContent = originalText;
-            googleLoginBtn.disabled = false;
-            
-            // Show specific error messages
-            if (error.code === 'auth/unauthorized-domain') {
-                showNotification('⚠️ This domain is not authorized. Please contact admin.', 'danger', 5000);
-                console.error('Add this domain to Firebase Auth > Settings > Authorized domains:', window.location.hostname);
-            } else if (error.code === 'auth/operation-not-allowed') {
-                showNotification('⚠️ Google Sign-In is not enabled in Firebase.', 'danger', 5000);
-            } else if (error.code === 'auth/popup-blocked') {
-                showNotification('⚠️ Popup was blocked. Trying redirect...', 'info', 3000);
-                await signInWithRedirect(auth, provider);
-            } else if (error.code === 'auth/network-request-failed') {
-                showNotification('⚠️ Network error. Please check your internet connection.', 'danger', 5000);
-            } else {
-                showNotification(`Login failed: ${error.message}`, 'danger', 5000);
-            }
-        }
-    });
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            userId = user.uid;
-            userEmail = user.email || 'Google User';
-            userName = user.displayName || 'User';
-            isLoggedIn = true;
-            googleLoginBtn.textContent = `✓ ${userName}`;
-            googleLoginBtn.disabled = true;
-            googleLoginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-            googleLoginBtn.classList.add('bg-green-600', 'cursor-default');
-            updateInputsBasedOnLogin();
-        } else {
-            isLoggedIn = false;
-            googleLoginBtn.textContent = 'Login with Google';
-            googleLoginBtn.disabled = false;
-            googleLoginBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-            googleLoginBtn.classList.remove('bg-green-600', 'cursor-default');
-            updateInputsBasedOnLogin();
-        }
-    });
-}
-
 function updateInputsBasedOnLogin() {
     const allInputs = document.querySelectorAll('.input-number');
-    const allCards = document.querySelectorAll('.room-card');
 
     allInputs.forEach(input => {
-        if (!isLoggedIn) {
-            input.disabled = true;
-            input.style.opacity = '0.5';
-            input.style.cursor = 'not-allowed';
-            input.title = 'Please login to input attendance';
-        } else if (isViewingToday && isWithinAllowedTime()) {
+        if (isViewingToday && isWithinAllowedTime()) {
             input.disabled = false;
             input.style.opacity = '1';
             input.style.cursor = 'text';
             input.title = '';
         }
     });
-
-    if (!isLoggedIn) {
-        showNotification('🔒 Please login with Google to input attendance', 'info', 5000);
-    }
 }
 
 function logActivity(action) {
@@ -926,9 +808,6 @@ async function initializeFirebase() {
 
         const app = initializeApp(firebaseConfig);
         db = getDatabase(app);
-        const auth = getAuth(app);
-
-        setupGoogleLogin(auth);
 
         try {
             const analytics = getAnalytics(app);
@@ -942,7 +821,6 @@ async function initializeFirebase() {
         checkAndRunDailyReset();
         hidePageLoader();
 
-        // Run data cleanup on app initialization (async, non-blocking)
         cleanupOldData();
 
         setupTotalHallListener();
@@ -994,7 +872,6 @@ function setupTotalHallListener() {
             }
         }
 
-        // Update individual floor cards
         ALL_FLOORS.forEach(floor => {
             let floorTotal = 0;
             const floorData = data[`floor_${floor}`];
@@ -1106,7 +983,6 @@ function renderRoomCard(roomNumber, currentCount) {
         let num = digits === '' ? 0 : parseInt(digits, 10);
         if (isNaN(num) || num < 0) num = 0;
         
-        // If input is greater than 6, don't accept it
         if (num > 6) {
             showNotification('⚠️ Maximum 6 students allowed per room', 'warning', 2000);
             if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
@@ -1121,7 +997,6 @@ function renderRoomCard(roomNumber, currentCount) {
         inputElement.addEventListener('input', (event) => {
             sanitizeAndSave(event.target.value);
         });
-        // Move cursor to end when clicking on input
         inputElement.addEventListener('focus', (event) => {
             setTimeout(() => {
                 const len = inputElement.value.length;
@@ -1265,10 +1140,8 @@ function setupRealtimeListener(dateKey = null) {
         ROOMS.forEach(room => {
             const roomKey = `room_${room}`;
             const roomData = data[roomKey];
-            // Use null if no data exists, otherwise use the present_count
             const presentCount = roomData && typeof roomData.present_count === 'number' ? roomData.present_count : null;
 
-            // Only add to total if it's a valid number >= 1
             if (presentCount !== null && presentCount >= 1) {
                 newTotals.push(presentCount);
             }
@@ -1546,7 +1419,6 @@ async function updateTotalForDate() {
             }
         }
 
-        // Update individual floor cards for date change
         ALL_FLOORS.forEach(floor => {
             let floorTotal = 0;
             const floorData = data[`floor_${floor}`];
@@ -1572,7 +1444,6 @@ function updateRoomBadge(roomNumber, count) {
     badge.className = 'room-badge';
     if (card) card.classList.remove('room-empty');
 
-    // null or undefined means no input yet (show '-')
     if (count === null || count === undefined || count === 0) {
         badge.textContent = '-';
         badge.classList.add('badge-empty');
@@ -1589,7 +1460,6 @@ function updateRoomProgress(roomNumber, count) {
     const card = document.getElementById(`room_${roomNumber}`);
     if (!track || !label) return;
     const capacity = 6;
-    // Handle null/undefined as no progress
     const actualCount = (count === null || count === undefined) ? 0 : count;
     const percent = Math.min(100, Math.round((actualCount / capacity) * 100));
     const displayLabel = (count === null || count === undefined) ? '-' : actualCount;
