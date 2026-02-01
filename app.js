@@ -46,7 +46,19 @@ function getRoomsForFloor(floorNumber) {
     const baseRoom = floorNumber * 100 + 2;
     const rooms = Array.from({ length: 16 }, (_, i) => baseRoom + i);
 
-    return rooms.filter(room => room !== 203);
+    // Rooms to exclude (no students stay here)
+    const excludedRooms = [
+        // 1st floor: 102-106 and 116
+        102, 103, 104, 105, 106, 116,
+        // 2nd floor: 203
+        203,
+        // 5th floor: 502-505
+        502, 503, 504, 505,
+        // 6th floor: 602-605
+        602, 603, 604, 605
+    ];
+
+    return rooms.filter(room => !excludedRooms.includes(room));
 }
 
 let ROOMS = [];
