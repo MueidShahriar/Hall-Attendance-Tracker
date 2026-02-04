@@ -10,13 +10,124 @@
 </head>
 <body>
 
+    <div id="auth-modal" class="auth-modal-overlay">
+        <div class="auth-modal-card">
+            <div class="text-center mb-6">
+                <img src="images/hall.png" alt="Hall Logo" class="w-16 h-16 mx-auto mb-3">
+                <h1 class="text-2xl font-bold text-gray-900">Hall Attendance Tracker</h1>
+                <p class="text-gray-500 mt-1">Welcome! Please login or create an account</p>
+            </div>
+
+            <div id="auth-alert-box" class="auth-alert"></div>
+
+            <div class="auth-tab-container" id="auth-tab-container">
+                <button class="auth-tab-btn active" data-tab="login" id="auth-login-tab-btn">Login</button>
+                <button class="auth-tab-btn" data-tab="register" id="auth-register-tab-btn">Register</button>
+            </div>
+
+            <form id="auth-login-form" class="auth-form active">
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-login-email">Email Address</label>
+                    <input type="email" id="auth-login-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="auth-error-message" id="auth-login-email-error">Please enter a valid email</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-login-password">Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-login-password" class="auth-input" placeholder="Enter your password" required>
+                        <button type="button" class="auth-password-toggle" data-target="auth-login-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-login-password-error">Password is required</p>
+                </div>
+
+                <div class="flex justify-end mb-4">
+                    <a href="#" class="auth-forgot-link" id="auth-forgot-password-link">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-login-btn">
+                    <span class="btn-text">Login</span>
+                </button>               
+                <div class="auth-divider">
+                    <span>or</span>
+                </div>
+
+                <button type="button" id="auth-continue-without-login" class="auth-btn auth-btn-secondary">
+                    👁️ Continue without login
+                </button>
+            </form>
+
+            <form id="auth-register-form" class="auth-form">
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-name">Full Name</label>
+                    <input type="text" id="auth-register-name" class="auth-input" placeholder="Enter your full name" required>
+                    <p class="auth-error-message" id="auth-register-name-error">Full name is required</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-email">Email Address</label>
+                    <input type="email" id="auth-register-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="auth-error-message" id="auth-register-email-error">Please enter a valid email</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-room">Room Number</label>
+                    <input type="number" id="auth-register-room" class="auth-input" placeholder="Enter your room number (e.g., 302)" required min="102" max="617">
+                    <p class="auth-error-message" id="auth-register-room-error">Please enter a valid room number</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-password">Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-register-password" class="auth-input" placeholder="Create a password (min 6 characters)" required minlength="6">
+                        <button type="button" class="auth-password-toggle" data-target="auth-register-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-register-password-error">Password must be at least 6 characters</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-confirm-password">Confirm Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-register-confirm-password" class="auth-input" placeholder="Retype your password" required>
+                        <button type="button" class="auth-password-toggle" data-target="auth-register-confirm-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-register-confirm-password-error">Passwords do not match</p>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-register-btn">
+                    <span class="btn-text">Create Account</span>
+                </button>              
+            </form>
+
+            <form id="auth-forgot-form" class="auth-form">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-900">Reset Password</h2>
+                    <p class="text-gray-500 text-sm mt-1">Enter your email to receive a password reset link</p>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-forgot-email">Email Address</label>
+                    <input type="email" id="auth-forgot-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="auth-error-message" id="auth-forgot-email-error">Please enter a valid email</p>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-forgot-btn">
+                    <span class="btn-text">Send Reset Link</span>
+                </button>
+
+                <button type="button" class="auth-btn auth-btn-secondary" id="auth-back-to-login" style="margin-top: 12px;">
+                    ← Back to Login
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div id="page-loader" class="page-loader">
         <div class="loader-content">
             <div class="logo-container" style="position: relative; width: 100px; height: 100px; margin: 0 auto 16px auto;">
                 <img src="images/hall.png" alt="Hall" class="logo-bg" style="width: 100px; height: 100px; filter: grayscale(100%) opacity(0.3); position: absolute; top: 0; left: 0;">
                 <img src="images/hall.png" alt="Hall" class="logo-fill" style="width: 100px; height: 100px; position: absolute; top: 0; left: 0; clip-path: inset(100% 0 0 0);">
             </div>
-            <p class="loader-text">Welcome to Hall Attendance Tracker</p>
         </div>
     </div>
 
@@ -39,18 +150,26 @@
                         <img src="images/hall.png" alt="Hall Logo" class="w-10 h-10 sm:w-12 sm:h-12">
                         <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Hall Attendance Tracker</h1>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="sound-toggle" class="btn btn-ghost btn-compact" title="Toggle Sound">🔊</button>
-                        <div class="color-picker-wrapper">
-                            <button id="color-picker-btn" class="btn btn-ghost btn-compact" title="Theme Color">🎨</button>
-                            <div id="color-picker-dropdown" class="color-dropdown hidden">
-           
-                                <button class="color-option" data-color="blue" title="Blue">🔵</button>
-                                <button class="color-option" data-color="green" title="Green">🟢</button>
-                                <button class="color-option" data-color="purple" title="Purple">🟣</button>
-                                <button class="color-option" data-color="rose" title="Rose">🔴</button>
-                                <button class="color-option" data-color="indigo" title="Indigo">🟠</button>
-                                
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <button id="sound-toggle" class="btn btn-ghost btn-compact" title="Toggle Sound">🔊</button>
+                            <div class="color-picker-wrapper">
+                                <button id="color-picker-btn" class="btn btn-ghost btn-compact" title="Theme Color">🎨</button>
+                                <div id="color-picker-dropdown" class="color-dropdown hidden">
+               
+                                    <button class="color-option" data-color="blue" title="Blue">🔵</button>
+                                    <button class="color-option" data-color="green" title="Green">🟢</button>
+                                    <button class="color-option" data-color="purple" title="Purple">🟣</button>
+                                    <button class="color-option" data-color="rose" title="Rose">🔴</button>
+                                    <button class="color-option" data-color="indigo" title="Indigo">🟠</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                        <div id="user-profile-section" class="user-profile-section">
+                            <div class="profile-name-display">
+                                <span id="profile-name-display">User</span>
+                                <span class="profile-room-badge" id="profile-room-display"></span>
                             </div>
                         </div>
                     </div>

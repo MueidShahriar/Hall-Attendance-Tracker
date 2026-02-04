@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Hall Attendance Tracker</title>
+    <link rel="icon" type="image/png" href="images/hall.png">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: transparent;
+            min-height: 100vh;
+        }
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: transparent;
+        }
+        .auth-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            animation: slideUp 0.5s ease;
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Form visibility control */
+        .auth-form {
+            display: none;
+        }
+        .auth-form.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="images/hall.png" alt="Hall Logo" style="width: 64px; height: 64px; margin: 0 auto 12px;">
+                <h1 style="font-size: 1.5rem; font-weight: 700; color: #111827;">Hall Attendance Tracker</h1>
+                <p style="color: #6b7280; margin-top: 4px;">Welcome! Please login or create an account</p>
+            </div>
+
+            <div id="alert-box" class="alert"></div>
+
+            <div class="tab-container">
+                <button class="tab-btn active" data-tab="login" id="login-tab-btn">Login</button>
+                <button class="tab-btn" data-tab="register" id="register-tab-btn">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="error-message" id="login-email-error">Please enter a valid email</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="login-password" class="auth-input" placeholder="Enter your password" required>
+                        <button type="button" class="password-toggle" data-target="login-password">👁️</button>
+                    </div>
+                    <p class="error-message" id="login-password-error">Password is required</p>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                    <a href="#" class="forgot-link" id="forgot-password-link">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="login-btn">
+                    <span class="btn-text">Login</span>
+                </button>     
+
+                <div class="divider">
+                    <span>or</span>
+                </div>
+
+                <a href="index.html?viewOnly=true" class="auth-btn" style="text-decoration: none; text-align: center; display: block; background: #f3f4f6; color: #374151; border: 2px solid #e5e7eb;">
+                    👁️ Continue without login
+                </a>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <div class="form-group">
+                    <label class="form-label" for="register-name">Full Name</label>
+                    <input type="text" id="register-name" class="auth-input" placeholder="Enter your full name" required>
+                    <p class="error-message" id="register-name-error">Full name is required</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="register-email">Email Address</label>
+                    <input type="email" id="register-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="error-message" id="register-email-error">Please enter a valid email</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="register-room">Room Number</label>
+                    <input type="number" id="register-room" class="auth-input" placeholder="Enter your room number (e.g., 302)" required min="102" max="617">
+                    <p class="error-message" id="register-room-error">Please enter a valid room number</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="register-password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="register-password" class="auth-input" placeholder="Create a password (min 6 characters)" required minlength="6">
+                        <button type="button" class="password-toggle" data-target="register-password">👁️</button>
+                    </div>
+                    <p class="error-message" id="register-password-error">Password must be at least 6 characters</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="register-confirm-password">Confirm Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="register-confirm-password" class="auth-input" placeholder="Retype your password" required>
+                        <button type="button" class="password-toggle" data-target="register-confirm-password">👁️</button>
+                    </div>
+                    <p class="error-message" id="register-confirm-password-error">Passwords do not match</p>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="register-btn">
+                    <span class="btn-text">Create Account</span>
+                </button>
+            </form>
+
+            <!-- Forgot Password Form -->
+            <form id="forgot-form" class="auth-form">
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <h2 style="font-size: 1.25rem; font-weight: 700; color: #111827;">Reset Password</h2>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Enter your email to receive a password reset link</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="forgot-email">Email Address</label>
+                    <input type="email" id="forgot-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="error-message" id="forgot-email-error">Please enter a valid email</p>
+                </div>
+
+                <button type="submit" class="auth-btn auth-btn-primary" id="forgot-btn">
+                    <span class="btn-text">Send Reset Link</span>
+                </button>
+
+                <button type="button" class="auth-btn" id="back-to-login" style="background: #f3f4f6; color: #374151; margin-top: 12px;">
+                    ← Back to Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+/* ===================================
+   COMPONENT STYLES - Buttons, Cards, etc.
+   =================================== */
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: none;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: #0f172a;
+}
+
+.btn-primary {
+    background: var(--theme-gradient);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px) scale(1.01);
+}
+
+.btn-danger {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px) scale(1.01);
+}
+
+.btn-lg {
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-compact {
+    padding: 6px 8px;
+    font-size: 1rem;
+    border-radius: var(--radius-full);
+    min-width: 0;
+    gap: 4px;
+}
+
+/* Cards */
+.card {
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.gradient-card {
+    background: var(--theme-gradient);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Room Cards */
+.room-card {
+    transition: all var(--transition-normal);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbff 100%);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    box-shadow: var(--shadow-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: var(--radius-lg);
+}
+
+.room-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.room-card.other-room {
+    opacity: 0.7;
+    background: #f3f4f6;
+}
+
+.room-card.other-room .input-number {
+    background: #e5e7eb !important;
+    cursor: not-allowed !important;
+    color: var(--muted) !important;
+}
+
+.room-card.room-full {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.room-card.room-no-one {
+    background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+    border: 2px dashed #9ca3af !important;
+    opacity: 0.7;
+}
+
+.room-card.room-empty {
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%) !important;
+    border: 2px dashed #fca5a5 !important;
+    opacity: 0.7;
+}
+
+/* Floor Cards */
+.floor-card {
+    transition: all var(--transition-normal);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbff 100%);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    border-radius: var(--radius-lg);
+}
+
+.floor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+    border-color: var(--theme-primary);
+}
+
+.floor-card.floor-empty {
+    opacity: 0.7;
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+/* Input Number */
+.input-number {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    color: #4c52f4;
+    background: linear-gradient(180deg, #fdfefe 0%, #f6f8ff 100%);
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    border-radius: 14px;
+    padding: 12px 16px;
+    transition: all 0.18s ease;
+    width: clamp(90px, 16vw, 150px);
+    min-width: 80px;
+    box-shadow: 0 6px 18px rgba(76, 82, 244, 0.08);
+}
+
+.input-number:focus {
+    background: white;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    outline: none;
+    animation: inputFocus 0.3s ease;
+}
+
+@keyframes inputFocus {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.input-saved {
+    transform: scale(1.01);
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.36) !important;
+}
+
+/* Progress Bar */
+.progress-track {
+    background: rgba(15, 23, 42, 0.05);
+    border-radius: var(--radius-full);
+    height: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    transition: width 600ms cubic-bezier(0.34, 1.56, 0.64, 1), background 200ms ease;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+.progress-fill.full {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #10b981 100%);
+    background-size: 200% 100%;
+    animation: fullProgress 2s linear infinite;
+}
+
+@keyframes fullProgress {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* Badges */
+.room-badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    color: white;
+    display: none !important;
+    min-width: 64px;
+    text-align: center;
+}
+
+.badge-normal { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
+.badge-warning { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
+.badge-full { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+.badge-no-one { background: linear-gradient(90deg, #6b7280 0%, #4b5563 100%); }
+.badge-empty { background-color: #fee2e2; color: #dc2626; }
+.badge-active { background-color: #dcfce7; color: #16a34a; }
+
+.floor-badge {
+    padding: 6px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Profile Section */
+.user-profile-section {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* Profile Display (non-clickable) */
+.profile-name-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    background: var(--theme-gradient);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Logout Button */
+.logout-btn {
+    background: #fee2e2;
+    border: 2px solid #fecaca;
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all var(--transition-normal);
+}
+
+.logout-btn:hover {
+    background: #fecaca;
+    border-color: #f87171;
+    transform: translateY(-2px);
+}
+
+.profile-room-badge {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Floor Select */
+#floor-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 44px;
+}
+
+#floor-select:hover {
+    border-color: var(--theme-primary);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+#floor-select:focus {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}

@@ -1,6 +1,18 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+import { 
+    getAuth, 
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signInWithPopup,
+    signOut,
+    GoogleAuthProvider,
+    sendPasswordResetEmail,
+    sendEmailVerification,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
 
@@ -33,6 +45,7 @@ let activityLog = [];
 let displayedCounts = {};
 let currentUnsubscribe = null;
 let isLoggedIn = true;
+let isViewOnlyMode = false;
 
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
@@ -215,6 +228,95 @@ function sendBrowserNotification(title, body, icon = '📋') {
 const countdownContainer = document.getElementById('countdown-container');
 const countdownTimer = document.getElementById('countdown-timer');
 const countdownStatus = document.getElementById('countdown-status');
+
+// Make countdown timer draggable
+function initDraggableCountdown() {
+    if (!countdownContainer) return;
+    
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    
+    // Load saved position
+    const savedPos = localStorage.getItem('countdown_position');
+    if (savedPos) {
+        try {
+            const pos = JSON.parse(savedPos);
+            countdownContainer.style.top = pos.top;
+            countdownContainer.style.right = 'auto';
+            countdownContainer.style.left = pos.left;
+        } catch (e) {}
+    }
+    
+    function onStart(e) {
+        isDragging = true;
+        countdownContainer.classList.add('dragging');
+        
+        if (e.type === 'touchstart') {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        } else {
+            startX = e.clientX;
+            startY = e.clientY;
+        }
+        
+        const rect = countdownContainer.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        
+        e.preventDefault();
+    }
+    
+    function onMove(e) {
+        if (!isDragging) return;
+        
+        let clientX, clientY;
+        if (e.type === 'touchmove') {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+        
+        let newLeft = initialX + deltaX;
+        let newTop = initialY + deltaY;
+        
+        // Keep within viewport
+        const rect = countdownContainer.getBoundingClientRect();
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rect.width));
+        newTop = Math.max(0, Math.min(newTop, window.innerHeight - rect.height));
+        
+        countdownContainer.style.left = newLeft + 'px';
+        countdownContainer.style.top = newTop + 'px';
+        countdownContainer.style.right = 'auto';
+    }
+    
+    function onEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        countdownContainer.classList.remove('dragging');
+        
+        // Save position
+        localStorage.setItem('countdown_position', JSON.stringify({
+            top: countdownContainer.style.top,
+            left: countdownContainer.style.left
+        }));
+    }
+    
+    countdownContainer.addEventListener('mousedown', onStart);
+    countdownContainer.addEventListener('touchstart', onStart, { passive: false });
+    
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
+}
+
+initDraggableCountdown();
 
 function updateCountdown() {
     if (!countdownContainer || !countdownTimer || !countdownStatus) return;
@@ -922,7 +1024,8 @@ function updateFloorCard(floorNumber, count) {
 function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
-    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn;
+    const isUserRoom = userRoomNumber === roomNumber;
+    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode;
     const displayValue = (currentCount === null || currentCount === undefined) ? '-' : String(currentCount);
 
     if (existingCard) {
@@ -936,7 +1039,13 @@ function renderRoomCard(roomNumber, currentCount) {
             input.disabled = !isEditable;
             input.style.opacity = isEditable ? '1' : '0.5';
             input.style.cursor = isEditable ? 'text' : 'not-allowed';
-            input.title = !isLoggedIn ? 'Please login to input attendance' : '';
+            input.title = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+        }
+        // Add/remove disabled class for non-user rooms
+        if (!isUserRoom) {
+            existingCard.classList.add('other-room');
+        } else {
+            existingCard.classList.remove('other-room');
         }
         displayedCounts[roomNumber] = currentCount;
         return;
@@ -944,12 +1053,15 @@ function renderRoomCard(roomNumber, currentCount) {
 
     const card = document.createElement('div');
     card.id = docId;
-    card.className = 'room-card p-5 rounded-2xl';
+    const inputTitle = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+    
+    card.className = `room-card p-5 rounded-2xl ${!isUserRoom ? 'other-room' : ''}`;
     card.innerHTML = `
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-1">
             <div class="text-lg font-bold text-gray-800">Room ${roomNumber}</div>
             <div class="room-badge" id="badge-${roomNumber}">-</div>
         </div>
+        ${isUserRoom && !isViewOnlyMode ? '<div class="mb-2"><span class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full">My Room</span></div>' : '<div class="mb-2"></div>'}
         <div class="text-sm text-gray-500 mb-2">Students Present:</div>
         <div class="input-with-controls" style="display:flex;gap:8px;align-items:center;justify-content:center;">
             <input
@@ -960,7 +1072,7 @@ function renderRoomCard(roomNumber, currentCount) {
                 placeholder="-"
                 class="input-number"
                 ${!isEditable ? 'disabled' : ''}
-                ${!isLoggedIn ? 'title="Please login to input attendance"' : ''}
+                title="${inputTitle}"
             />
         </div>
         <div class="mt-3">
@@ -974,8 +1086,20 @@ function renderRoomCard(roomNumber, currentCount) {
     const inputElement = card.querySelector(`#input-${roomNumber}`);
 
     function sanitizeAndSave(val) {
+        if (isViewOnlyMode) {
+            showNotification('👁️ View only mode - please login to edit attendance', 'warning', 3000);
+            if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
+            return;
+        }
+        
         if (!isLoggedIn) {
-            showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
+            showNotification('🔒 Please login to input attendance', 'warning', 3000);
+            return;
+        }
+        
+        if (!isUserRoom) {
+            showNotification('🔒 You can only edit your own room attendance', 'warning', 3000);
+            if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
             return;
         }
 
@@ -1487,7 +1611,574 @@ function animateTotalChange() {
     el.classList.add('count-pop');
 }
 
-function init() {
+// Get initials from name
+function getInitials(name) {
+    if (!name) return '👤';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// User's room number (for room restriction)
+let userRoomNumber = null;
+
+let authModal, authLoginForm, authRegisterForm, authForgotForm;
+let authLoginTabBtn, authRegisterTabBtn, authAlertBox, authForgotPasswordLink, authBackToLoginBtn;
+let authTabContainer;
+let firebaseAuth;
+const googleProvider = new GoogleAuthProvider();
+
+function initAuthModal() {
+    authModal = document.getElementById('auth-modal');
+    authLoginForm = document.getElementById('auth-login-form');
+    authRegisterForm = document.getElementById('auth-register-form');
+    authForgotForm = document.getElementById('auth-forgot-form');
+    authLoginTabBtn = document.getElementById('auth-login-tab-btn');
+    authRegisterTabBtn = document.getElementById('auth-register-tab-btn');
+    authAlertBox = document.getElementById('auth-alert-box');
+    authForgotPasswordLink = document.getElementById('auth-forgot-password-link');
+    authBackToLoginBtn = document.getElementById('auth-back-to-login');
+    authTabContainer = document.querySelector('.auth-tab-container');
+
+    if (!authModal) return;
+
+    authLoginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
+    authRegisterTabBtn?.addEventListener('click', () => switchAuthTab('register'));
+    authForgotPasswordLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthTab('forgot');
+    });
+    authBackToLoginBtn?.addEventListener('click', () => switchAuthTab('login'));
+
+    document.querySelectorAll('.auth-password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
+            }
+        });
+    });
+
+    document.getElementById('auth-continue-without-login')?.addEventListener('click', () => {
+        isViewOnlyMode = true;
+        isLoggedIn = false;
+        userRoomNumber = null;
+        userName = 'Guest';
+        hideAuthModal();
+        updateProfileDisplayForGuest();
+    });
+
+    authLoginForm?.addEventListener('submit', handleLogin);
+
+    authRegisterForm?.addEventListener('submit', handleRegister);
+
+    document.getElementById('auth-google-login-btn')?.addEventListener('click', handleGoogleSignIn);
+    document.getElementById('auth-google-register-btn')?.addEventListener('click', handleGoogleSignIn);
+
+    authForgotForm?.addEventListener('submit', handleForgotPassword);
+}
+
+function switchAuthTab(tab) {
+    hideAuthAlert();
+    
+    // Remove active class from all forms
+    authLoginForm?.classList.remove('active');
+    authRegisterForm?.classList.remove('active');
+    authForgotForm?.classList.remove('active');
+    
+    if (tab === 'login') {
+        authLoginTabBtn?.classList.add('active');
+        authRegisterTabBtn?.classList.remove('active');
+        authLoginForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'flex';
+    } else if (tab === 'register') {
+        authLoginTabBtn?.classList.remove('active');
+        authRegisterTabBtn?.classList.add('active');
+        authRegisterForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'flex';
+    } else if (tab === 'forgot') {
+        authForgotForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'none';
+    }
+}
+
+function showAuthAlert(message, type) {
+    if (authAlertBox) {
+        authAlertBox.textContent = message;
+        authAlertBox.className = `auth-alert show auth-alert-${type}`;
+    }
+}
+
+function hideAuthAlert() {
+    if (authAlertBox) {
+        authAlertBox.className = 'auth-alert';
+    }
+}
+
+function showAuthModal() {
+    if (authModal) {
+        authModal.classList.add('show');
+    }
+}
+
+function hideAuthModal() {
+    if (authModal) {
+        authModal.classList.remove('show');
+    }
+}
+
+// Verification waiting modal
+let verificationCheckInterval = null;
+
+function showVerificationWaitingModal(user, email) {
+    // Hide the auth modal forms and show verification waiting
+    hideAuthModal();
+    
+    // Create verification modal if it doesn't exist
+    let verificationModal = document.getElementById('verification-modal');
+    if (!verificationModal) {
+        verificationModal = document.createElement('div');
+        verificationModal.id = 'verification-modal';
+        verificationModal.className = 'auth-modal-overlay show';
+        document.body.appendChild(verificationModal);
+    }
+    
+    verificationModal.innerHTML = `
+        <div class="auth-modal-card" style="text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 20px;">📧</div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 12px;">Verify Your Email</h2>
+            <p style="color: #6b7280; margin-bottom: 8px;">We've sent a verification link to:</p>
+            <p style="color: #6366f1; font-weight: 600; margin-bottom: 24px;">${email}</p>
+            <div id="verification-status" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: #fef3c7; border-radius: 12px; margin-bottom: 20px;">
+                <div class="auth-loading-spinner" style="border-color: rgba(217, 119, 6, 0.3); border-top-color: #d97706;"></div>
+                <span style="color: #92400e; font-weight: 500;">Waiting for verification...</span>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 16px;">Click the link in your email to verify your account. This page will automatically redirect once verified.</p>
+            <button id="resend-verification-btn" class="auth-btn" style="background: #f3f4f6; color: #374151; margin-bottom: 12px;">
+                📨 Resend Verification Email
+            </button>
+            <button id="cancel-verification-btn" class="auth-btn" style="background: #fee2e2; color: #dc2626;">
+                ✕ Cancel
+            </button>
+        </div>
+    `;
+    
+    verificationModal.classList.add('show');
+    
+    // Resend button
+    document.getElementById('resend-verification-btn').addEventListener('click', async () => {
+        try {
+            await sendEmailVerification(user);
+            showNotification('Verification email sent!', 'success');
+        } catch (error) {
+            showNotification('Failed to send email. Try again later.', 'error');
+        }
+    });
+    
+    // Cancel button
+    document.getElementById('cancel-verification-btn').addEventListener('click', () => {
+        clearInterval(verificationCheckInterval);
+        verificationModal.remove();
+        showAuthModal();
+        switchAuthTab('login');
+    });
+    
+    // Start checking for verification
+    verificationCheckInterval = setInterval(async () => {
+        try {
+            await user.reload();
+            if (user.emailVerified) {
+                clearInterval(verificationCheckInterval);
+                const statusEl = document.getElementById('verification-status');
+                if (statusEl) {
+                    statusEl.style.background = '#d1fae5';
+                    statusEl.innerHTML = `
+                        <span style="font-size: 24px;">✅</span>
+                        <span style="color: #065f46; font-weight: 500;">Email verified! Redirecting...</span>
+                    `;
+                }
+                setTimeout(() => {
+                    verificationModal.remove();
+                    window.location.reload();
+                }, 1500);
+            }
+        } catch (error) {
+            console.error('Error checking verification:', error);
+        }
+    }, 3000); // Check every 3 seconds
+}
+
+function updateProfileDisplay(user, userData) {
+    const profileSection = document.getElementById('user-profile-section');
+    
+    if (user && profileSection) {
+        const displayName = user.displayName || userData?.fullName || 'User';
+        const roomNumber = userData?.roomNumber || '';
+        
+        profileSection.innerHTML = `
+            <div class="profile-name-display">
+                <span id="profile-name-display">${displayName}</span>
+                <span class="profile-room-badge" id="profile-room-display">${roomNumber ? 'Room ' + roomNumber : ''}</span>
+            </div>
+        `;
+        
+        if (roomNumber) {
+            userRoomNumber = roomNumber;
+            localStorage.setItem('userRoom', roomNumber);
+        }
+    }
+}
+
+function updateProfileDisplayForGuest() {
+    const profileSection = document.getElementById('user-profile-section');
+    
+    if (profileSection) {
+        profileSection.innerHTML = `
+            <div class="profile-name-display" id="guest-login-btn" title="Click to login" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); cursor: pointer;">
+                <span>👁️ View Only</span>
+            </div>
+        `;
+        const guestLoginBtn = document.getElementById('guest-login-btn');
+        if (guestLoginBtn) {
+            guestLoginBtn.onclick = (e) => {
+                e.preventDefault();
+                showAuthModal();
+            };
+        }
+    }
+}
+
+async function checkAndDeleteOldAccounts() {
+    try {
+        if (!firebaseAuth || !db) return;
+        
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
+        
+        if (!snapshot.exists()) return;
+        
+        const users = snapshot.val();
+        const now = new Date();
+        const sixMonthsAgo = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000); // Approximate 6 months
+        
+        for (const userId in users) {
+            const userData = users[userId];
+            if (userData.createdAt) {
+                const createdDate = new Date(userData.createdAt);
+                if (createdDate < sixMonthsAgo) {
+                    // Delete user data from database
+                    const userRef = ref(db, `users/${userId}`);
+                    await remove(userRef);
+                    
+                    // Try to delete the user account
+                    try {
+                        const user = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js").then(() => {
+                            return auth.getUser ? auth.getUser() : null;
+                        });
+                        if (user && user.uid === userId) {
+                            // User is currently logged in, they'll be logged out
+                            await signOut(firebaseAuth);
+                        }
+                    } catch (e) {
+                        // Could not delete auth user, but database record is deleted
+                        console.log('Auto-delete: Database record removed for old account:', userId);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error in auto-delete check:', error);
+    }
+}
+
+// Run auto-delete check periodically
+function startAutoDeleteCheck() {
+    // Check every hour
+    checkAndDeleteOldAccounts();
+    setInterval(checkAndDeleteOldAccounts, 60 * 60 * 1000);
+}
+
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function isValidRoomNumber(roomNumber) {
+    const room = parseInt(roomNumber);
+    if (isNaN(room) || room < 102 || room > 617) return false;
+    const excludedRooms = [
+        102, 103, 104, 105, 106, 116,
+        203,
+        502, 503, 504, 505,
+        602, 603, 604, 605
+    ];
+    return !excludedRooms.includes(room);
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-login-email').value.trim();
+    const password = document.getElementById('auth-login-password').value;
+
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+
+    const loginBtn = document.getElementById('auth-login-btn');
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+
+    try {
+        const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        
+        if (!userCredential.user.emailVerified) {
+            showAuthAlert('Please verify your email before logging in. Check your inbox.', 'warning');
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<span class="btn-text">Login</span>';
+            return;
+        }
+        
+        showAuthAlert('Login successful!', 'success');
+        setTimeout(() => {
+            hideAuthModal();
+            window.location.reload();
+        }, 1000);
+    } catch (error) {
+        let errorMessage = 'Login failed. Please try again.';
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/invalid-credential') {
+            errorMessage = 'Invalid email or password.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<span class="btn-text">Login</span>';
+    }
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    const name = document.getElementById('auth-register-name').value.trim();
+    const email = document.getElementById('auth-register-email').value.trim();
+    const roomNumber = document.getElementById('auth-register-room').value.trim();
+    const password = document.getElementById('auth-register-password').value;
+    const confirmPassword = document.getElementById('auth-register-confirm-password').value;
+
+    if (!name) {
+        showAuthAlert('Please enter your full name', 'error');
+        return;
+    }
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+    if (!isValidRoomNumber(roomNumber)) {
+        showAuthAlert('Please enter a valid room number', 'error');
+        return;
+    }
+    if (password.length < 6) {
+        showAuthAlert('Password must be at least 6 characters', 'error');
+        return;
+    }
+    if (password !== confirmPassword) {
+        showAuthAlert('Passwords do not match', 'error');
+        return;
+    }
+
+    const registerBtn = document.getElementById('auth-register-btn');
+    registerBtn.disabled = true;
+    registerBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
+        
+        const userRef = ref(db, `users/${userCredential.user.uid}`);
+        await set(userRef, {
+            fullName: name,
+            email: email,
+            roomNumber: parseInt(roomNumber),
+            createdAt: new Date().toISOString()
+        });
+
+        await sendEmailVerification(userCredential.user);
+        
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
+        
+        // Show verification waiting modal
+        showVerificationWaitingModal(userCredential.user, email);
+    } catch (error) {
+        let errorMessage = 'Registration failed. Please try again.';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email already exists.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password is too weak.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
+    }
+}
+
+async function handleGoogleSignIn() {
+    try {
+        const result = await signInWithPopup(firebaseAuth, googleProvider);
+        const user = result.user;
+        
+        const userRef = ref(db, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+        
+        if (!snapshot.exists() || !snapshot.val().roomNumber) {
+            const roomNumber = prompt('Please enter your room number (e.g., 302):');
+            if (!roomNumber || !isValidRoomNumber(roomNumber)) {
+                showAuthAlert('Please enter a valid room number to continue', 'error');
+                return;
+            }
+            
+            await set(userRef, {
+                fullName: user.displayName || 'User',
+                email: user.email,
+                roomNumber: parseInt(roomNumber),
+                createdAt: snapshot.exists() ? snapshot.val().createdAt : new Date().toISOString()
+            });
+        }
+        
+        showAuthAlert('Login successful!', 'success');
+        setTimeout(() => {
+            hideAuthModal();
+            window.location.reload();
+        }, 1000);
+    } catch (error) {
+        showAuthAlert('Google sign-in failed. Please try again.', 'error');
+    }
+}
+
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-forgot-email').value.trim();
+
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+
+    const forgotBtn = document.getElementById('auth-forgot-btn');
+    forgotBtn.disabled = true;
+    forgotBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+
+    try {
+        await sendPasswordResetEmail(firebaseAuth, email);
+        showAuthAlert('Password reset email sent! Check your inbox.', 'success');
+        forgotBtn.disabled = false;
+        forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
+    } catch (error) {
+        let errorMessage = 'Failed to send reset email.';
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        forgotBtn.disabled = false;
+        forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
+    }
+}
+
+async function checkAuth() {
+    const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    let firebaseApp;
+    try {
+        firebaseApp = getApp();
+    } catch (e) {
+        firebaseApp = initializeApp(firebaseConfig);
+    }
+    firebaseAuth = getAuth(firebaseApp);
+    
+    initAuthModal();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const isViewOnlyRequested = urlParams.get('viewOnly') === 'true';
+    
+    return new Promise((resolve) => {
+        onAuthStateChanged(firebaseAuth, async (user) => {
+            if (!user) {
+                if (isViewOnlyRequested) {
+                    isViewOnlyMode = true;
+                    isLoggedIn = false;
+                    userRoomNumber = null;
+                    userName = 'Guest';
+                    hideAuthModal();
+                    updateProfileDisplayForGuest();
+                    resolve(true);
+                    return;
+                }
+                showAuthModal();
+                resolve(false);
+                return;
+            }
+            
+            if (!user.emailVerified) {
+                showAuthModal();
+                showAuthAlert('Please verify your email to continue. Check your inbox.', 'warning');
+                resolve(false);
+                return;
+            }
+            
+            hideAuthModal();
+            
+            userId = user.uid;
+            userEmail = user.email;
+            userName = user.displayName || 'User';
+            isLoggedIn = true;
+            isViewOnlyMode = false;
+
+            if (isViewOnlyRequested) {
+                urlParams.delete('viewOnly');
+                const newUrl = urlParams.toString()
+                    ? `${window.location.pathname}?${urlParams.toString()}`
+                    : window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+            
+            localStorage.setItem('userId', user.uid);
+            localStorage.setItem('userEmail', user.email);
+            localStorage.setItem('userName', userName);
+            
+            try {
+                const userRef = ref(db, `users/${user.uid}`);
+                const snapshot = await get(userRef);
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    if (userData.fullName) {
+                        userName = userData.fullName;
+                        localStorage.setItem('userName', userName);
+                    }
+                    if (userData.roomNumber && userData.roomNumber !== 0) {
+                        userRoomNumber = userData.roomNumber;
+                        localStorage.setItem('userRoom', userData.roomNumber);
+                    }
+                    updateProfileDisplay(user, userData);
+                } else {
+                    updateProfileDisplay(user, null);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                updateProfileDisplay(user, null);
+            }
+            
+            resolve(true);
+        });
+    });
+}
+
+async function init() {
     updateSoundToggle();
 
     const savedColorTheme = localStorage.getItem('fas_color_theme') || 'indigo';
@@ -1505,8 +2196,10 @@ function init() {
         hidePageLoader();
     }, 8000);
 
-
-    initializeFirebase();
+    await initializeFirebase();
+    
+    await checkAuth();
+    
     initializeDatePicker();
 
     localStorage.removeItem('fas_selected_floor');
