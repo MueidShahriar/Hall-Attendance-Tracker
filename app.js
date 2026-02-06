@@ -298,7 +298,7 @@ function updateCountdown() {
     } else {
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = '00:00:00';
-        countdownStatus.textContent = 'window closed for today';
+        countdownStatus.textContent = 'window closed';
         countdownTimer.classList.remove('text-indigo-600');
         countdownTimer.classList.add('text-red-600');
     }
