@@ -93,14 +93,18 @@
     cursor: not-allowed !important;
     color: var(--muted) !important;
 }
+.room-card.room-active {
+    background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%) !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
 .room-card.room-full {
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
     border-color: rgba(16, 185, 129, 0.3);
 }
 .room-card.room-no-one {
-    background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%) !important;
-    border: 2px dashed #9ca3af !important;
-    opacity: 0.7;
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%) !important;
+    border: 2px dashed #fca5a5 !important;
+    opacity: 0.75;
 }
 .room-card.room-empty {
     background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%) !important;

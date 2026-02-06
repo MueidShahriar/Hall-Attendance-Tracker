@@ -1282,11 +1282,13 @@ function updateRoomBadge(roomNumber, count) {
     badge.className = 'room-badge';
     badge.style.display = 'none';
     if (card) {
-        card.classList.remove('room-empty', 'room-no-one');
+        card.classList.remove('room-empty', 'room-no-one', 'room-active');
     }
     if (count === null || count === undefined) {
     } else if (count === 0) {
         if (card) card.classList.add('room-no-one');
+    } else if (count >= 1 && count <= 6) {
+        if (card) card.classList.add('room-active');
     }
 }
 function updateRoomProgress(roomNumber, count) {
