@@ -13,9 +13,7 @@ import {
     sendEmailVerification,
     updateProfile
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
-
 const firebaseConfig = {
     apiKey: "AIzaSyBYTnrnXjBCvlfEu2nDc0IVIZ_rtzlix9s",
     authDomain: "floor-attendance-system.firebaseapp.com",
@@ -26,7 +24,6 @@ const firebaseConfig = {
     appId: "1:721240132639:web:629b90ae09d3fcbcc1d92a",
     measurementId: "G-RZ8YDY6F4S"
 };
-
 let db;
 let userId = 'system';
 let userEmail = 'system@attendance.local';
@@ -46,50 +43,38 @@ let displayedCounts = {};
 let currentUnsubscribe = null;
 let isLoggedIn = true;
 let isViewOnlyMode = false;
-
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
 const ALLOWED_END_MINUTES = (22 * 60);
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
-
-
 function getRoomsForFloor(floorNumber) {
     const baseRoom = floorNumber * 100 + 2;
     const rooms = Array.from({ length: 16 }, (_, i) => baseRoom + i);
-
     const excludedRooms = [
         102, 103, 104, 105, 106, 116,
         203,
         502, 503, 504, 505,
         602, 603, 604, 605
     ];
-
     return rooms.filter(room => !excludedRooms.includes(room));
 }
-
 let ROOMS = [];
 const ROOMS_PER_FLOOR = 16;
 const MAX_CAPACITY = ROOMS_PER_FLOOR * 6;
-
 let soundEnabled = localStorage.getItem('fas_sound') !== 'false';
 let audioContext;
-
 try {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
 } catch (e) {
-    console.warn('AudioContext not supported:', e);
 }
-
 function playSound(type) {
     if (!soundEnabled || !audioContext) return;
-
     try {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-
         switch (type) {
             case 'click':
                 oscillator.frequency.value = 800;
@@ -126,28 +111,23 @@ function playSound(type) {
                 break;
         }
     } catch (e) {
-        console.warn('Sound playback failed:', e);
     }
 }
-
 const confettiCanvas = document.getElementById('confetti-canvas');
 const confettiCtx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
 let confettiParticles = [];
 let confettiAnimating = false;
 let hasShownFullConfetti = false;
-
 function resizeConfettiCanvas() {
     if (confettiCanvas) {
         confettiCanvas.width = window.innerWidth;
         confettiCanvas.height = window.innerHeight;
     }
 }
-
 if (confettiCanvas) {
     resizeConfettiCanvas();
     window.addEventListener('resize', resizeConfettiCanvas);
 }
-
 function createConfettiParticle() {
     const colors = ['#6366f1', '#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6'];
     return {
@@ -161,36 +141,29 @@ function createConfettiParticle() {
         drift: (Math.random() - 0.5) * 2
     };
 }
-
 function animateConfetti() {
     if (!confettiAnimating || !confettiCtx) return;
-
     confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-
     confettiParticles.forEach((p, i) => {
         p.y += p.speed;
         p.x += p.drift;
         p.angle += p.spin;
-
         confettiCtx.save();
         confettiCtx.translate(p.x, p.y);
         confettiCtx.rotate(p.angle);
         confettiCtx.fillStyle = p.color;
         confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
         confettiCtx.restore();
-
         if (p.y > confettiCanvas.height + 20) {
             confettiParticles.splice(i, 1);
         }
     });
-
     if (confettiParticles.length > 0) {
         requestAnimationFrame(animateConfetti);
     } else {
         confettiAnimating = false;
     }
 }
-
 function launchConfetti() {
     if (!confettiCanvas) return;
     confettiParticles = [];
@@ -203,9 +176,7 @@ function launchConfetti() {
     animateConfetti();
     playSound('celebration');
 }
-
 let notificationPermission = 'default';
-
 async function requestNotificationPermission() {
     if ('Notification' in window && Notification.permission === 'default') {
         notificationPermission = await Notification.requestPermission();
@@ -213,7 +184,6 @@ async function requestNotificationPermission() {
         notificationPermission = Notification.permission;
     }
 }
-
 function sendBrowserNotification(title, body, icon = '📋') {
     if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title, {
@@ -224,19 +194,13 @@ function sendBrowserNotification(title, body, icon = '📋') {
         });
     }
 }
-
 const countdownContainer = document.getElementById('countdown-container');
 const countdownTimer = document.getElementById('countdown-timer');
 const countdownStatus = document.getElementById('countdown-status');
-
-// Make countdown timer draggable
 function initDraggableCountdown() {
     if (!countdownContainer) return;
-    
     let isDragging = false;
     let startX, startY, initialX, initialY;
-    
-    // Load saved position
     const savedPos = localStorage.getItem('countdown_position');
     if (savedPos) {
         try {
@@ -246,11 +210,9 @@ function initDraggableCountdown() {
             countdownContainer.style.left = pos.left;
         } catch (e) {}
     }
-    
     function onStart(e) {
         isDragging = true;
         countdownContainer.classList.add('dragging');
-        
         if (e.type === 'touchstart') {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
@@ -258,17 +220,13 @@ function initDraggableCountdown() {
             startX = e.clientX;
             startY = e.clientY;
         }
-        
         const rect = countdownContainer.getBoundingClientRect();
         initialX = rect.left;
         initialY = rect.top;
-        
         e.preventDefault();
     }
-    
     function onMove(e) {
         if (!isDragging) return;
-        
         let clientX, clientY;
         if (e.type === 'touchmove') {
             clientX = e.touches[0].clientX;
@@ -277,71 +235,52 @@ function initDraggableCountdown() {
             clientX = e.clientX;
             clientY = e.clientY;
         }
-        
         const deltaX = clientX - startX;
         const deltaY = clientY - startY;
-        
         let newLeft = initialX + deltaX;
         let newTop = initialY + deltaY;
-        
-        // Keep within viewport
         const rect = countdownContainer.getBoundingClientRect();
         newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rect.width));
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - rect.height));
-        
         countdownContainer.style.left = newLeft + 'px';
         countdownContainer.style.top = newTop + 'px';
         countdownContainer.style.right = 'auto';
     }
-    
     function onEnd() {
         if (!isDragging) return;
         isDragging = false;
         countdownContainer.classList.remove('dragging');
-        
-        // Save position
         localStorage.setItem('countdown_position', JSON.stringify({
             top: countdownContainer.style.top,
             left: countdownContainer.style.left
         }));
     }
-    
     countdownContainer.addEventListener('mousedown', onStart);
     countdownContainer.addEventListener('touchstart', onStart, { passive: false });
-    
     document.addEventListener('mousemove', onMove);
     document.addEventListener('touchmove', onMove, { passive: false });
-    
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
 }
-
 initDraggableCountdown();
-
 function updateCountdown() {
     if (!countdownContainer || !countdownTimer || !countdownStatus) return;
-
-
     if (!currentFloor) {
         countdownContainer.classList.add('hidden');
         return;
     }
-
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES) {
         const remainingMinutes = ALLOWED_END_MINUTES - minutes;
         const hours = Math.floor(remainingMinutes / 60);
         const mins = remainingMinutes % 60;
         const secs = 59 - now.getSeconds();
-
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         countdownStatus.textContent = 'remaining to submit';
         countdownTimer.classList.remove('text-red-600');
         countdownTimer.classList.add('text-indigo-600');
-
         if (remainingMinutes <= 15) {
             countdownTimer.classList.remove('text-indigo-600');
             countdownTimer.classList.add('text-red-600');
@@ -351,7 +290,6 @@ function updateCountdown() {
         const hours = Math.floor(untilStartMinutes / 60);
         const mins = untilStartMinutes % 60;
         const secs = 59 - now.getSeconds();
-
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         countdownStatus.textContent = 'until window opens';
@@ -365,10 +303,8 @@ function updateCountdown() {
         countdownTimer.classList.add('text-red-600');
     }
 }
-
 const roomSearch = document.getElementById('room-search');
 const clearSearchBtn = document.getElementById('clear-search');
-
 function filterRooms(searchTerm) {
     const term = searchTerm.trim().toLowerCase();
     ROOMS.forEach(room => {
@@ -383,7 +319,6 @@ function filterRooms(searchTerm) {
             }
         }
     });
-
     if (clearSearchBtn) {
         if (term !== '') {
             clearSearchBtn.classList.remove('hidden');
@@ -392,14 +327,12 @@ function filterRooms(searchTerm) {
         }
     }
 }
-
 if (roomSearch) {
     roomSearch.addEventListener('input', (e) => {
         playSound('click');
         filterRooms(e.target.value);
     });
 }
-
 if (clearSearchBtn) {
     clearSearchBtn.addEventListener('click', () => {
         playSound('click');
@@ -407,11 +340,9 @@ if (clearSearchBtn) {
         filterRooms('');
     });
 }
-
 const colorPickerBtn = document.getElementById('color-picker-btn');
 const colorDropdown = document.getElementById('color-picker-dropdown');
 const colorOptions = document.querySelectorAll('.color-option');
-
 const themeColors = {
     indigo: { primary: '#EBB328', secondary: '#EBB328', gradient: 'linear-gradient(135deg, #EBB328 0%, #EBB328 100%)' },
     blue: { primary: '#3b82f6', secondary: '#2563eb', gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' },
@@ -419,30 +350,23 @@ const themeColors = {
     purple: { primary: '#8b5cf6', secondary: '#7c3aed', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' },
     rose: { primary: '#f43f5e', secondary: '#e11d48', gradient: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' }
 };
-
 function applyColorTheme(colorName) {
     const theme = themeColors[colorName] || themeColors.indigo;
     document.documentElement.style.setProperty('--theme-primary', theme.primary);
     document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
     document.documentElement.style.setProperty('--theme-gradient', theme.gradient);
-
     const gradientCard = document.getElementById('total-attendance-card');
     if (gradientCard) {
         gradientCard.style.background = theme.gradient;
     }
-
-
     const totalHallCard = document.getElementById('total-hall-card');
     if (totalHallCard) {
         totalHallCard.style.background = theme.gradient;
     }
-
     document.querySelectorAll('.input-number').forEach(input => {
         input.style.setProperty('--focus-color', theme.primary);
     });
-
     localStorage.setItem('fas_color_theme', colorName);
-
     colorOptions.forEach(opt => {
         opt.classList.remove('active');
         if (opt.dataset.color === colorName) {
@@ -450,7 +374,6 @@ function applyColorTheme(colorName) {
         }
     });
 }
-
 if (colorPickerBtn) {
     colorPickerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -458,7 +381,6 @@ if (colorPickerBtn) {
         if (colorDropdown) colorDropdown.classList.toggle('hidden');
     });
 }
-
 colorOptions.forEach(option => {
     option.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -468,20 +390,16 @@ colorOptions.forEach(option => {
         if (colorDropdown) colorDropdown.classList.add('hidden');
     });
 });
-
 document.addEventListener('click', () => {
     if (colorDropdown) colorDropdown.classList.add('hidden');
 });
-
 const soundToggle = document.getElementById('sound-toggle');
-
 function updateSoundToggle() {
     if (soundToggle) {
         soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
         soundToggle.title = soundEnabled ? 'Sound On' : 'Sound Off';
     }
 }
-
 if (soundToggle) {
     soundToggle.addEventListener('click', () => {
         soundEnabled = !soundEnabled;
@@ -490,7 +408,6 @@ if (soundToggle) {
         if (soundEnabled) playSound('click');
     });
 }
-
 function getTodayDateKey() {
     const today = new Date();
     const year = today.getFullYear();
@@ -498,14 +415,12 @@ function getTodayDateKey() {
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
-
 function formatDateKey(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
-
 function formatDisplayDate(dateKey) {
     const [year, month, day] = dateKey.split('-');
     const date = new Date(year, month - 1, day);
@@ -516,42 +431,31 @@ function formatDisplayDate(dateKey) {
         day: 'numeric'
     });
 }
-
 const DATA_RETENTION_DAYS = 20;
-
 async function cleanupOldData() {
     if (!db) return;
-
     const today = new Date();
     const cutoffDate = new Date(today);
     cutoffDate.setDate(today.getDate() - DATA_RETENTION_DAYS);
-
-    console.log(`Running data cleanup... Removing data older than ${DATA_RETENTION_DAYS} days (before ${formatDateKey(cutoffDate)})`);
-
     try {
         for (const floor of ALL_FLOORS) {
             const floorRef = ref(db, `attendance/floor_${floor}`);
             const snapshot = await get(floorRef);
             const floorData = snapshot.val();
-
             if (floorData) {
                 for (const dateKey of Object.keys(floorData)) {
                     const [year, month, day] = dateKey.split('-').map(Number);
                     const recordDate = new Date(year, month - 1, day);
-
                     if (recordDate < cutoffDate) {
                         const dateRef = ref(db, `attendance/floor_${floor}/${dateKey}`);
                         await remove(dateRef);
-                        console.log(`Deleted old attendance data: floor_${floor}/${dateKey}`);
                     }
                 }
             }
         }
-
         const activityLogsRef = ref(db, 'activity_logs');
         const activitySnapshot = await get(activityLogsRef);
         const activityData = activitySnapshot.val();
-
         if (activityData) {
             const cutoffTimestamp = cutoffDate.getTime();
             for (const userId of Object.keys(activityData)) {
@@ -563,13 +467,10 @@ async function cleanupOldData() {
                     }
                 }
             }
-            console.log('Cleaned up old activity logs');
         }
-
         const roomUpdatesRef = ref(db, 'room_updates');
         const roomUpdatesSnapshot = await get(roomUpdatesRef);
         const roomUpdatesData = roomUpdatesSnapshot.val();
-
         if (roomUpdatesData) {
             const cutoffTimestamp = cutoffDate.getTime();
             for (const timestamp of Object.keys(roomUpdatesData)) {
@@ -578,13 +479,10 @@ async function cleanupOldData() {
                     await remove(updateRef);
                 }
             }
-            console.log('Cleaned up old room updates');
         }
-
         const userLoginsRef = ref(db, 'user_logins');
         const userLoginsSnapshot = await get(userLoginsRef);
         const userLoginsData = userLoginsSnapshot.val();
-
         if (userLoginsData) {
             const cutoffTimestamp = cutoffDate.getTime();
             for (const timestamp of Object.keys(userLoginsData)) {
@@ -593,28 +491,20 @@ async function cleanupOldData() {
                     await remove(loginRef);
                 }
             }
-            console.log('Cleaned up old user logins');
         }
-
-        console.log('Data cleanup completed successfully!');
     } catch (error) {
-        console.error('Error during data cleanup:', error);
     }
 }
-
 function getMinutesSinceMidnight(date = new Date()) {
     return date.getHours() * 60 + date.getMinutes();
 }
-
 function isWithinAllowedTime() {
     if (!ALLOW_TIME_LIMIT) return true;
     const minutes = getMinutesSinceMidnight();
     return minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES;
 }
-
 function updateInputsBasedOnLogin() {
     const allInputs = document.querySelectorAll('.input-number');
-
     allInputs.forEach(input => {
         if (isViewingToday && isWithinAllowedTime()) {
             input.disabled = false;
@@ -624,7 +514,6 @@ function updateInputsBasedOnLogin() {
         }
     });
 }
-
 function logActivity(action) {
     if (!db) return;
     const timestamp = new Date().toISOString();
@@ -634,9 +523,8 @@ function logActivity(action) {
         name: userName,
         action: action,
         timestamp: timestamp
-    }).catch(err => console.warn('Activity log failed:', err));
+    }).catch(() => {});
 }
-
 function logUserLogin() {
     if (!db || !userEmail) return;
     const timestamp = new Date().toISOString();
@@ -647,14 +535,12 @@ function logUserLogin() {
         user_id: userId,
         login_time: timestamp,
         date: getTodayDateKey()
-    }).catch(err => console.warn('Login log failed:', err));
+    }).catch(() => {});
 }
-
 async function logRoomUpdate(roomNumber, floor, count) {
     if (!db || !userEmail) return;
     const timestamp = new Date().toISOString();
     const emailKey = userEmail.replace(/[.#$[\]]/g, '_');
-
     const updateRef = ref(db, `room_updates/${Date.now()}`);
     await set(updateRef, {
         email: userEmail,
@@ -665,14 +551,12 @@ async function logRoomUpdate(roomNumber, floor, count) {
         count: count,
         timestamp: timestamp,
         date: getTodayDateKey()
-    }).catch(err => console.warn('Update log failed:', err));
-
+    }).catch(() => {});
     const userStatsRef = ref(db, `user_stats/${emailKey}`);
     try {
         const snapshot = await get(userStatsRef);
         const currentStats = snapshot.val() || { update_count: 0, rooms_updated: [] };
         const newCount = (currentStats.update_count || 0) + 1;
-
         await set(userStatsRef, {
             email: userEmail,
             name: userName,
@@ -682,10 +566,8 @@ async function logRoomUpdate(roomNumber, floor, count) {
             last_floor: floor
         });
     } catch (err) {
-        console.warn('User stats update failed:', err);
     }
 }
-
 const totalCountDisplay = document.getElementById('total-count-display');
 const roomGrid = document.getElementById('room-grid');
 const loadingStatus = document.getElementById('loading-status');
@@ -704,56 +586,33 @@ const floorTitle = document.getElementById('floor-title');
 const roomSectionTitle = document.getElementById('room-section-title');
 const timeNote = document.getElementById('time-note');
 const totalHallCount = document.getElementById('total-hall-count');
-
-
 const ALL_FLOORS = [1, 2, 3, 4, 5, 6];
-
 const activityLogModal = document.getElementById('activity-log-modal');
 const closeActivityLog = document.getElementById('close-activity-log');
 const activityLogContent = document.getElementById('activity-log-content');
 const logDateFilter = document.getElementById('log-date-filter');
 const logUserFilter = document.getElementById('log-user-filter');
 const logRoomFilter = document.getElementById('log-room-filter');
-
 function displayError(message) {
-    console.error(message);
     if (errorText) errorText.textContent = message;
     if (errorDiv) errorDiv.classList.remove('hidden');
     if (loadingStatus) loadingStatus.classList.add('hidden');
 }
-
-
 async function loadActivityLog() {
-
     return [];
 }
-
-function placeholder_loadActivityLog() {
-    if (false) {
-        const logs = [];
-        snapshot.forEach((child) => {
-            logs.push({ id: child.key, ...child.val() });
-        });
-        return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    }
-    return [];
-}
-
 async function showActivityLog() {
     if (!activityLogModal) return;
     activityLogModal.classList.remove('hidden');
     if (activityLogContent) {
         activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">Loading activity log...</p>';
     }
-
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     if (logDateFilter) logDateFilter.value = `${year}-${month}-${day}`;
-
     activityLog = await loadActivityLog();
-
     const users = [...new Set(activityLog.map(log => log.user))];
     if (logUserFilter) {
         logUserFilter.innerHTML = '<option value="">All Users</option>';
@@ -761,54 +620,42 @@ async function showActivityLog() {
             logUserFilter.innerHTML += `<option value="${user}">${user}</option>`;
         });
     }
-
     if (logRoomFilter) {
         logRoomFilter.innerHTML = '<option value="">All Rooms</option>';
         ROOMS.forEach(room => {
             logRoomFilter.innerHTML += `<option value="${room}">Room ${room}</option>`;
         });
     }
-
     filterActivityLog();
 }
-
 function filterActivityLog() {
     const dateFilter = logDateFilter ? logDateFilter.value : '';
     const userFilter = logUserFilter ? logUserFilter.value : '';
     const roomFilter = logRoomFilter ? logRoomFilter.value : '';
-
     let filtered = activityLog;
-
     if (dateFilter) {
         filtered = filtered.filter(log => log.date === dateFilter);
     }
-
     if (userFilter) {
         filtered = filtered.filter(log => log.user === userFilter);
     }
-
     if (roomFilter) {
         filtered = filtered.filter(log =>
             log.details && log.details.includes(`Room ${roomFilter}`)
         );
     }
-
     displayActivityLog(filtered);
 }
-
 function displayActivityLog(logs) {
     if (!activityLogContent) return;
-
     if (logs.length === 0) {
         activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">No activity found for selected filters.</p>';
         return;
     }
-
     activityLogContent.innerHTML = logs.map(log => {
         const time = new Date(log.timestamp).toLocaleString();
         const actionColor = log.action === 'update' ? 'text-blue-600' :
             log.action === 'reset' ? 'text-red-600' : 'text-green-600';
-
         return `
             <div class="activity-log-item border border-gray-200 rounded-lg p-4">
                 <div class="flex justify-between items-start">
@@ -822,20 +669,16 @@ function displayActivityLog(logs) {
         `;
     }).join('');
 }
-
 function showNotification(message, type = 'info', duration = 5000) {
     if (!notificationContainer) return;
-
     const notification = document.createElement('div');
     notification.className = `notification notification-${type} text-white p-4 rounded-lg shadow-lg flex items-start gap-3`;
-
     const icon = {
         'info': 'ℹ️',
         'warning': '⚠️',
         'success': '✓',
         'danger': '⚡'
     }[type] || 'ℹ️';
-
     notification.innerHTML = `
         <span class="text-2xl">${icon}</span>
         <div class="flex-1">
@@ -843,9 +686,7 @@ function showNotification(message, type = 'info', duration = 5000) {
         </div>
         <button class="text-white hover:text-gray-200 font-bold text-xl leading-none" onclick="this.parentElement.remove()">×</button>
     `;
-
     notificationContainer.appendChild(notification);
-
     if (duration > 0) {
         setTimeout(() => {
             notification.style.animation = 'slideIn 0.3s ease-out reverse';
@@ -853,29 +694,22 @@ function showNotification(message, type = 'info', duration = 5000) {
         }, duration);
     }
 }
-
 function checkInputWindowAndNotify() {
     if (!isViewingToday) return;
-
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_START_MINUTES + 5 && !sentNotifications.reminder1) {
         showNotification(`🔔 Reminder for ${userId}: Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`, 'info', 10000);
-        sendEmailReminder('first');
         sentNotifications.reminder1 = true;
     }
     else if (minutes >= SECOND_REMINDER_MINUTES && minutes < SECOND_REMINDER_MINUTES + 5 && !sentNotifications.reminder2) {
         showNotification(`⏰ Second Reminder for ${userId}: Only 1 hour left! Attendance window closes at 10:00 PM.`, 'warning', 10000);
-        sendEmailReminder('second');
         sentNotifications.reminder2 = true;
     }
     else if (minutes >= FINAL_REMINDER_MINUTES && minutes < FINAL_REMINDER_MINUTES + 5 && !sentNotifications.reminder3) {
         showNotification(`🚨 FINAL Reminder for ${userId}: Only 15 minutes left to submit attendance! Window closes at 10:00 PM.`, 'danger', 12000);
-        sendEmailReminder('final');
         sentNotifications.reminder3 = true;
     }
-
     if (minutes < ALLOWED_START_MINUTES || minutes >= ALLOWED_END_MINUTES) {
         sentNotifications = {
             reminder1: false,
@@ -884,12 +718,6 @@ function checkInputWindowAndNotify() {
         };
     }
 }
-
-async function sendEmailReminder(type) {
-
-    console.log(`Reminder (${type}) - not saved to Firebase`);
-}
-
 function hidePageLoader() {
     const loader = document.getElementById('page-loader');
     if (loader && !loader.classList.contains('hidden')) {
@@ -901,60 +729,45 @@ function hidePageLoader() {
         }, 100);
     }
 }
-
 async function initializeFirebase() {
     try {
         if (Object.keys(firebaseConfig).length === 0) {
             throw new Error("Firebase configuration is missing. Cannot initialize database.");
         }
-
         const app = initializeApp(firebaseConfig);
         db = getDatabase(app);
-
         try {
             const analytics = getAnalytics(app);
-            console.log('Firebase Analytics initialized.');
         } catch (e) {
-            console.warn('Firebase Analytics not initialized:', e.message);
         }
-
         if (loadingStatus) loadingStatus.textContent = 'Connected. Setting up real-time listener...';
         setupRealtimeListener();
         checkAndRunDailyReset();
         hidePageLoader();
-
         cleanupOldData();
-
+        cleanupUnverifiedUsers();
         setupTotalHallListener();
-
     } catch (error) {
         displayError(`Firebase Initialization failed: ${error.message}`);
         hidePageLoader();
     }
 }
-
 let totalHallUnsubscribe = null;
-
 function setupTotalHallListener() {
     if (!db) return;
-
     if (totalHallUnsubscribe) {
         totalHallUnsubscribe();
         totalHallUnsubscribe = null;
     }
-
     const attendanceRef = ref(db, `attendance`);
-
     const unsubscribe = onValue(attendanceRef, (snapshot) => {
         const viewDateKey = currentViewDate || getTodayDateKey();
         const data = snapshot.val() || {};
         let grandTotal = 0;
-
         ALL_FLOORS.forEach(floor => {
             const floorData = data[`floor_${floor}`];
             if (floorData && floorData[viewDateKey]) {
                 const dateData = floorData[viewDateKey];
-
                 Object.keys(dateData).forEach(roomKey => {
                     if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
                         grandTotal += dateData[roomKey].present_count;
@@ -962,18 +775,15 @@ function setupTotalHallListener() {
                 });
             }
         });
-
         if (totalHallCount) {
             const oldTotal = parseInt(totalHallCount.textContent) || 0;
             totalHallCount.textContent = grandTotal;
-
             if (grandTotal !== oldTotal) {
                 totalHallCount.classList.remove('count-pop');
                 void totalHallCount.offsetWidth;
                 totalHallCount.classList.add('count-pop');
             }
         }
-
         ALL_FLOORS.forEach(floor => {
             let floorTotal = 0;
             const floorData = data[`floor_${floor}`];
@@ -988,15 +798,12 @@ function setupTotalHallListener() {
             updateFloorCard(floor, floorTotal);
         });
     });
-
     totalHallUnsubscribe = unsubscribe;
 }
-
 function updateFloorCard(floorNumber, count) {
     const countEl = document.getElementById(`floor-count-${floorNumber}`);
     const badgeEl = document.getElementById(`floor-badge-${floorNumber}`);
     const cardEl = document.getElementById(`floor-card-${floorNumber}`);
-    
     if (countEl) {
         const oldCount = parseInt(countEl.textContent) || 0;
         countEl.textContent = count;
@@ -1006,7 +813,6 @@ function updateFloorCard(floorNumber, count) {
             countEl.classList.add('count-pop');
         }
     }
-    
     if (badgeEl) {
         badgeEl.className = 'floor-badge';
         if (count === 0) {
@@ -1020,14 +826,12 @@ function updateFloorCard(floorNumber, count) {
         }
     }
 }
-
 function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
     const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode;
     const displayValue = (currentCount === null || currentCount === undefined) ? '-' : String(currentCount);
-
     if (existingCard) {
         const input = existingCard.querySelector('input');
         if (input && document.activeElement !== input) {
@@ -1041,7 +845,6 @@ function renderRoomCard(roomNumber, currentCount) {
             input.style.cursor = isEditable ? 'text' : 'not-allowed';
             input.title = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
         }
-        // Add/remove disabled class for non-user rooms
         if (!isUserRoom) {
             existingCard.classList.add('other-room');
         } else {
@@ -1050,11 +853,9 @@ function renderRoomCard(roomNumber, currentCount) {
         displayedCounts[roomNumber] = currentCount;
         return;
     }
-
     const card = document.createElement('div');
     card.id = docId;
     const inputTitle = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
-    
     card.className = `room-card p-5 rounded-2xl ${!isUserRoom ? 'other-room' : ''}`;
     card.innerHTML = `
         <div class="flex items-center justify-between mb-1">
@@ -1082,41 +883,33 @@ function renderRoomCard(roomNumber, currentCount) {
             <div class="progress-label text-xs text-gray-500 mt-1" id="progress-label-${roomNumber}">-/6</div>
         </div>
     `;
-
     const inputElement = card.querySelector(`#input-${roomNumber}`);
-
     function sanitizeAndSave(val) {
         if (isViewOnlyMode) {
             showNotification('👁️ View only mode - please login to edit attendance', 'warning', 3000);
             if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
             return;
         }
-        
         if (!isLoggedIn) {
             showNotification('🔒 Please login to input attendance', 'warning', 3000);
             return;
         }
-        
         if (!isUserRoom) {
             showNotification('🔒 You can only edit your own room attendance', 'warning', 3000);
             if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
             return;
         }
-
         const digits = String(val ?? '').replace(/\D/g, '');
         let num = digits === '' ? 0 : parseInt(digits, 10);
         if (isNaN(num) || num < 0) num = 0;
-        
         if (num > 6) {
             showNotification('⚠️ Maximum 6 students allowed per room', 'warning', 2000);
             if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
             return;
         }
-
         if (inputElement) inputElement.value = String(num);
         updateAttendance(roomNumber, num);
     }
-
     if (isEditable && inputElement) {
         inputElement.addEventListener('input', (event) => {
             sanitizeAndSave(event.target.value);
@@ -1131,11 +924,9 @@ function renderRoomCard(roomNumber, currentCount) {
         inputElement.style.opacity = '0.5';
         inputElement.style.cursor = 'not-allowed';
     }
-
     updateRoomBadge(roomNumber, currentCount);
     if (roomGrid) roomGrid.appendChild(card);
 }
-
 function renderInitialRooms() {
     if (!roomGrid) return;
     if (!currentFloor || ROOMS.length === 0) {
@@ -1151,18 +942,14 @@ function renderInitialRooms() {
         totalCountDisplay.textContent = '0';
     }
 }
-
 function calculateTotal(attendanceData) {
     const total = attendanceData.reduce((sum, doc) => sum + (doc.present_count || 0), 0);
     if (totalCountDisplay) totalCountDisplay.textContent = total;
     animateTotalChange();
-
     if (isViewingToday) {
         checkCapacityAndNotify(total);
     }
 }
-
-
 function getOrdinalSuffix(num) {
     const n = parseInt(num);
     if (n === 1) return '1st';
@@ -1170,65 +957,46 @@ function getOrdinalSuffix(num) {
     if (n === 3) return '3rd';
     return n + 'th';
 }
-
-
 function selectFloor(floorNumber) {
     if (!floorNumber) return;
-
     currentFloor = parseInt(floorNumber);
     ROOMS = getRoomsForFloor(currentFloor);
     displayedCounts = {};
-
     const floorOrdinal = getOrdinalSuffix(currentFloor);
-
-
     if (noFloorMessage) noFloorMessage.classList.add('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
     if (roomContainer) roomContainer.classList.remove('hidden');
     if (loadingStatus) loadingStatus.classList.remove('hidden');
     if (timeNote) timeNote.classList.remove('hidden');
-
-
     if (floorTitle) {
         floorTitle.textContent = `Total Students Present on ${floorOrdinal} Floor`;
     }
     if (roomSectionTitle) {
         roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance Inputs`;
     }
-
-
     localStorage.setItem('fas_selected_floor', currentFloor);
     renderInitialRooms();
     setupRealtimeListener(currentViewDate);
     playSound('success');
     showNotification(`Switched to ${floorOrdinal} Floor`, 'info', 2500);
 }
-
-
 if (floorSelect) {
     floorSelect.addEventListener('change', (e) => {
         selectFloor(e.target.value);
     });
 }
-
 function setupRealtimeListener(dateKey = null) {
     if (!db) return;
     if (!currentFloor) return;
-
     const viewDateKey = dateKey || currentViewDate;
     const todayDateKey = getTodayDateKey();
-
     isViewingToday = (viewDateKey === todayDateKey);
-
     lastNotifiedTotal = 0;
     hasShownInputWindowReminder = false;
-
     const floorOrdinal = getOrdinalSuffix(currentFloor);
-
     if (dateDisplay) {
         dateDisplay.innerHTML = `Viewing: <strong>${floorOrdinal} Floor</strong> | Date: <strong>${formatDisplayDate(viewDateKey)}</strong>`;
     }
-
     if (viewModeIndicator) {
         if (isViewingToday) {
             viewModeIndicator.innerHTML = '<strong>Live View</strong> - Data updates in real-time';
@@ -1238,48 +1006,35 @@ function setupRealtimeListener(dateKey = null) {
             viewModeIndicator.className = 'text-xs text-center mt-3 text-blue-600 font-medium';
         }
     }
-
-
     const attendanceRef = ref(db, `attendance/floor_${currentFloor}/${viewDateKey}`);
-
     onValue(attendanceRef, (snapshot) => {
         if (loadingStatus) loadingStatus.classList.add('hidden');
-
         const data = snapshot.val() || {};
-
         if (Object.keys(data).length === 0 && isViewingToday) {
-            console.log(`No data found for floor ${currentFloor} today, initializing...`);
             seedInitialRooms();
         } else if (Object.keys(data).length === 0) {
-            console.log(`No attendance data found for floor ${currentFloor} on ${viewDateKey}`);
             if (roomGrid) {
                 roomGrid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">No attendance records found for this date.</p>';
             }
             if (totalCountDisplay) totalCountDisplay.textContent = '0';
             return;
         }
-
         const newTotals = [];
-
         ROOMS.forEach(room => {
             const roomKey = `room_${room}`;
             const roomData = data[roomKey];
             const presentCount = roomData && typeof roomData.present_count === 'number' ? roomData.present_count : null;
-
             if (presentCount !== null && presentCount >= 1) {
                 newTotals.push(presentCount);
             }
-
             const existing = document.getElementById(`room_${room}`);
             const prev = displayedCounts[room];
-
             if (!existing) {
                 renderRoomCard(room, presentCount);
                 setTimeout(() => updateRoomProgress(room, presentCount), 50);
                 displayedCounts[room] = presentCount;
                 return;
             }
-
             if (prev !== presentCount) {
                 const inputEl = existing.querySelector(`#input-${room}`);
                 const displayValue = (presentCount === null || presentCount === undefined) ? '-' : String(presentCount);
@@ -1291,7 +1046,6 @@ function setupRealtimeListener(dateKey = null) {
                 displayedCounts[room] = presentCount;
             }
         });
-
         const newTotal = newTotals.reduce((s, v) => s + (v || 0), 0);
         const oldTotal = totalCountDisplay ? parseInt(totalCountDisplay.textContent) || 0 : 0;
         if (newTotal !== oldTotal) {
@@ -1299,20 +1053,14 @@ function setupRealtimeListener(dateKey = null) {
             animateTotalChange();
             if (isViewingToday) checkCapacityAndNotify(newTotal);
         }
-
     }, (error) => {
         displayError(`Real-time listener failed: ${error.message}`);
     });
 }
-
 async function seedInitialRooms() {
     if (!db || !currentFloor) return;
-
     const todayDateKey = getTodayDateKey();
-    console.log(`Initializing database for floor ${currentFloor}, date: ${todayDateKey}`);
-
     const updates = {};
-
     ROOMS.forEach(room => {
         const roomKey = `room_${room}`;
         updates[`attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`] = {
@@ -1323,30 +1071,23 @@ async function seedInitialRooms() {
             date: todayDateKey
         };
     });
-
     try {
         await update(ref(db), updates);
-        console.log(`Database structure initialized for floor ${currentFloor}, ${todayDateKey} with ${ROOMS.length} rooms.`);
     } catch (error) {
-        console.error('Failed to seed initial rooms:', error.message);
         displayError(`Failed to initialize database: ${error.message}`);
     }
 }
-
 async function clearAllAttendance(isManual = false) {
     if (!db) {
         if (isManual) displayError("Database not initialized. Please wait.");
         return;
     }
     if (!currentFloor) return;
-
     if (errorDiv) errorDiv.classList.add('hidden');
     if (loadingStatus) loadingStatus.textContent = 'Auto-reset in progress...';
-
     try {
         const todayDateKey = getTodayDateKey();
         const updates = {};
-
         ROOMS.forEach(room => {
             const roomKey = `room_${room}`;
             updates[`attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`] = {
@@ -1356,71 +1097,48 @@ async function clearAllAttendance(isManual = false) {
                 timestamp: new Date().toISOString()
             };
         });
-
         updates['reset_tracker/last_reset'] = new Date().toISOString();
-
         await update(ref(db), updates);
-
-        console.log('Automatic daily reset successfully completed.');
-
     } catch (error) {
         displayError(`Failed to complete automatic reset: ${error.message}`);
     } finally {
         if (loadingStatus) loadingStatus.textContent = 'Database loaded and real-time listener active.';
     }
 }
-
 async function checkAndRunDailyReset() {
     if (!db) return;
-
     const now = new Date();
-
     const targetResetTimeToday = new Date();
     targetResetTimeToday.setHours(18, 0, 0, 0);
-
     if (now.getTime() < targetResetTimeToday.getTime()) {
-        console.log("Auto-reset skipped: Current time is before 6:00 PM.");
         return;
     }
-
     const resetRef = ref(db, 'reset_tracker/last_reset');
-
     try {
         const snapshot = await get(resetRef);
         const lastResetTimestamp = snapshot.exists() ? snapshot.val() : null;
         let lastResetTime = null;
-
         if (lastResetTimestamp) {
             lastResetTime = new Date(lastResetTimestamp);
         }
-
         const resetAlreadyDone = lastResetTime && lastResetTime.getTime() > targetResetTimeToday.getTime();
-
         if (!resetAlreadyDone) {
-            console.log("Auto-reset triggered: Past 6:00 PM and reset has not run today. Executing reset...");
             await clearAllAttendance(false);
         } else {
-            console.log("Auto-reset skipped: Already performed today after 6:00 PM.");
         }
-
     } catch (error) {
-        console.error("Error during automatic reset check:", error.message);
     }
 }
-
 async function updateAttendance(roomNumber, value) {
     if (!db || !currentFloor) return;
-
     if (!isLoggedIn) {
         showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
         return;
     }
-
     if (!isWithinAllowedTime()) {
         displayError('Attendance can only be updated between 06:30 PM to 9:30 AM.');
         return;
     }
-
     let count = parseInt(value);
     if (isNaN(count) || count < 0) {
         count = 0;
@@ -1431,11 +1149,9 @@ async function updateAttendance(roomNumber, value) {
         const inputElement = document.getElementById(`input-${roomNumber}`);
         if (inputElement) inputElement.value = 6;
     }
-
     const todayDateKey = getTodayDateKey();
     const roomKey = `room_${roomNumber}`;
     const roomRef = ref(db, `attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`);
-
     try {
         await set(roomRef, {
             room: roomNumber,
@@ -1444,12 +1160,9 @@ async function updateAttendance(roomNumber, value) {
             timestamp: new Date().toISOString(),
             updated_by: userEmail
         });
-
         await logRoomUpdate(roomNumber, currentFloor, count);
-
         showNotification(`Thank you ${userName} - Room ${roomNumber} updated (${count})`, 'success', 2500);
         playSound('success');
-
         try {
             updateRoomBadge(roomNumber, count);
             updateRoomProgress(roomNumber, count);
@@ -1459,14 +1172,11 @@ async function updateAttendance(roomNumber, value) {
                 setTimeout(() => inputEl.classList.remove('input-saved'), 900);
             }
         } catch (e) {
-            console.warn('UI update after save failed', e);
         }
-
     } catch (error) {
         displayError(`Failed to update attendance for Room ${roomNumber}: ${error.message}`);
     }
 }
-
 function setDatePickerToToday() {
     if (!datePicker) return;
     const today = new Date();
@@ -1475,17 +1185,13 @@ function setDatePickerToToday() {
     const day = String(today.getDate()).padStart(2, '0');
     datePicker.value = `${year}-${month}-${day}`;
 }
-
 function initializeDatePicker() {
     setDatePickerToToday();
-
     if (datePicker) {
         datePicker.addEventListener('change', (event) => {
             const selectedDate = new Date(event.target.value + 'T00:00:00');
             currentViewDate = formatDateKey(selectedDate);
-
             updateTotalForDate();
-
             if (currentFloor) {
                 renderInitialRooms();
                 setupRealtimeListener(currentViewDate);
@@ -1493,14 +1199,11 @@ function initializeDatePicker() {
             if (errorDiv) errorDiv.classList.add('hidden');
         });
     }
-
     if (todayBtn) {
         todayBtn.addEventListener('click', () => {
             setDatePickerToToday();
             currentViewDate = getTodayDateKey();
-
             updateTotalForDate();
-
             if (currentFloor) {
                 renderInitialRooms();
                 setupRealtimeListener(currentViewDate);
@@ -1509,18 +1212,14 @@ function initializeDatePicker() {
         });
     }
 }
-
 async function updateTotalForDate() {
     if (!db) return;
-
     const viewDateKey = currentViewDate || getTodayDateKey();
-
     try {
         const attendanceRef = ref(db, `attendance`);
         const snapshot = await get(attendanceRef);
         const data = snapshot.val() || {};
         let grandTotal = 0;
-
         ALL_FLOORS.forEach(floor => {
             const floorData = data[`floor_${floor}`];
             if (floorData && floorData[viewDateKey]) {
@@ -1532,7 +1231,6 @@ async function updateTotalForDate() {
                 });
             }
         });
-
         if (totalHallCount) {
             const oldTotal = parseInt(totalHallCount.textContent) || 0;
             totalHallCount.textContent = grandTotal;
@@ -1542,7 +1240,6 @@ async function updateTotalForDate() {
                 totalHallCount.classList.add('count-pop');
             }
         }
-
         ALL_FLOORS.forEach(floor => {
             let floorTotal = 0;
             const floorData = data[`floor_${floor}`];
@@ -1557,17 +1254,14 @@ async function updateTotalForDate() {
             updateFloorCard(floor, floorTotal);
         });
     } catch (error) {
-        console.error('Error fetching total:', error);
     }
 }
-
 function updateRoomBadge(roomNumber, count) {
     const badge = document.getElementById(`badge-${roomNumber}`);
     const card = document.getElementById(`room_${roomNumber}`);
     if (!badge) return;
     badge.className = 'room-badge';
     if (card) card.classList.remove('room-empty');
-
     if (count === null || count === undefined || count === 0) {
         badge.textContent = '-';
         badge.classList.add('badge-empty');
@@ -1577,7 +1271,6 @@ function updateRoomBadge(roomNumber, count) {
         badge.classList.add('badge-active');
     }
 }
-
 function updateRoomProgress(roomNumber, count) {
     const track = document.getElementById(`progress-${roomNumber}`);
     const label = document.getElementById(`progress-label-${roomNumber}`);
@@ -1591,7 +1284,6 @@ function updateRoomProgress(roomNumber, count) {
     if (fill) {
         fill.style.width = percent + '%';
         fill.setAttribute('aria-valuenow', actualCount);
-
         if (actualCount >= capacity) {
             fill.classList.add('full');
             if (card) card.classList.add('room-full');
@@ -1602,7 +1294,6 @@ function updateRoomProgress(roomNumber, count) {
     }
     label.textContent = `${displayLabel}/${capacity}`;
 }
-
 function animateTotalChange() {
     const el = document.getElementById('total-count-display');
     if (!el) return;
@@ -1610,24 +1301,18 @@ function animateTotalChange() {
     void el.offsetWidth;
     el.classList.add('count-pop');
 }
-
-// Get initials from name
 function getInitials(name) {
     if (!name) return '👤';
     const parts = name.trim().split(' ');
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
-
-// User's room number (for room restriction)
 let userRoomNumber = null;
-
 let authModal, authLoginForm, authRegisterForm, authForgotForm;
 let authLoginTabBtn, authRegisterTabBtn, authAlertBox, authForgotPasswordLink, authBackToLoginBtn;
 let authTabContainer;
 let firebaseAuth;
 const googleProvider = new GoogleAuthProvider();
-
 function initAuthModal() {
     authModal = document.getElementById('auth-modal');
     authLoginForm = document.getElementById('auth-login-form');
@@ -1639,9 +1324,7 @@ function initAuthModal() {
     authForgotPasswordLink = document.getElementById('auth-forgot-password-link');
     authBackToLoginBtn = document.getElementById('auth-back-to-login');
     authTabContainer = document.querySelector('.auth-tab-container');
-
     if (!authModal) return;
-
     authLoginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
     authRegisterTabBtn?.addEventListener('click', () => switchAuthTab('register'));
     authForgotPasswordLink?.addEventListener('click', (e) => {
@@ -1649,7 +1332,6 @@ function initAuthModal() {
         switchAuthTab('forgot');
     });
     authBackToLoginBtn?.addEventListener('click', () => switchAuthTab('login'));
-
     document.querySelectorAll('.auth-password-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const targetId = btn.getAttribute('data-target');
@@ -1663,7 +1345,6 @@ function initAuthModal() {
             }
         });
     });
-
     document.getElementById('auth-continue-without-login')?.addEventListener('click', () => {
         isViewOnlyMode = true;
         isLoggedIn = false;
@@ -1672,25 +1353,17 @@ function initAuthModal() {
         hideAuthModal();
         updateProfileDisplayForGuest();
     });
-
     authLoginForm?.addEventListener('submit', handleLogin);
-
     authRegisterForm?.addEventListener('submit', handleRegister);
-
     document.getElementById('auth-google-login-btn')?.addEventListener('click', handleGoogleSignIn);
     document.getElementById('auth-google-register-btn')?.addEventListener('click', handleGoogleSignIn);
-
     authForgotForm?.addEventListener('submit', handleForgotPassword);
 }
-
 function switchAuthTab(tab) {
     hideAuthAlert();
-    
-    // Remove active class from all forms
     authLoginForm?.classList.remove('active');
     authRegisterForm?.classList.remove('active');
     authForgotForm?.classList.remove('active');
-    
     if (tab === 'login') {
         authLoginTabBtn?.classList.add('active');
         authRegisterTabBtn?.classList.remove('active');
@@ -1706,40 +1379,30 @@ function switchAuthTab(tab) {
         if (authTabContainer) authTabContainer.style.display = 'none';
     }
 }
-
 function showAuthAlert(message, type) {
     if (authAlertBox) {
         authAlertBox.textContent = message;
         authAlertBox.className = `auth-alert show auth-alert-${type}`;
     }
 }
-
 function hideAuthAlert() {
     if (authAlertBox) {
         authAlertBox.className = 'auth-alert';
     }
 }
-
 function showAuthModal() {
     if (authModal) {
         authModal.classList.add('show');
     }
 }
-
 function hideAuthModal() {
     if (authModal) {
         authModal.classList.remove('show');
     }
 }
-
-// Verification waiting modal
 let verificationCheckInterval = null;
-
 function showVerificationWaitingModal(user, email) {
-    // Hide the auth modal forms and show verification waiting
     hideAuthModal();
-    
-    // Create verification modal if it doesn't exist
     let verificationModal = document.getElementById('verification-modal');
     if (!verificationModal) {
         verificationModal = document.createElement('div');
@@ -1747,7 +1410,6 @@ function showVerificationWaitingModal(user, email) {
         verificationModal.className = 'auth-modal-overlay show';
         document.body.appendChild(verificationModal);
     }
-    
     verificationModal.innerHTML = `
         <div class="auth-modal-card" style="text-align: center;">
             <div style="font-size: 64px; margin-bottom: 20px;">📧</div>
@@ -1758,7 +1420,8 @@ function showVerificationWaitingModal(user, email) {
                 <div class="auth-loading-spinner" style="border-color: rgba(217, 119, 6, 0.3); border-top-color: #d97706;"></div>
                 <span style="color: #92400e; font-weight: 500;">Waiting for verification...</span>
             </div>
-            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 16px;">Click the link in your email to verify your account. This page will automatically redirect once verified.</p>
+            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 12px;">Click the link in your email to verify your account. This page will automatically redirect once verified.</p>
+            <p style="color: #dc2626; font-size: 13px; font-weight: 700; margin-bottom: 16px; background: #fee2e2; padding: 8px 12px; border-radius: 8px; border: 1px solid #fca5a5;">⚠️ NB: Please check your spam folder of Email</p>
             <button id="resend-verification-btn" class="auth-btn" style="background: #f3f4f6; color: #374151; margin-bottom: 12px;">
                 📨 Resend Verification Email
             </button>
@@ -1767,10 +1430,7 @@ function showVerificationWaitingModal(user, email) {
             </button>
         </div>
     `;
-    
     verificationModal.classList.add('show');
-    
-    // Resend button
     document.getElementById('resend-verification-btn').addEventListener('click', async () => {
         try {
             await sendEmailVerification(user);
@@ -1779,16 +1439,12 @@ function showVerificationWaitingModal(user, email) {
             showNotification('Failed to send email. Try again later.', 'error');
         }
     });
-    
-    // Cancel button
     document.getElementById('cancel-verification-btn').addEventListener('click', () => {
         clearInterval(verificationCheckInterval);
         verificationModal.remove();
         showAuthModal();
         switchAuthTab('login');
     });
-    
-    // Start checking for verification
     verificationCheckInterval = setInterval(async () => {
         try {
             await user.reload();
@@ -1808,35 +1464,28 @@ function showVerificationWaitingModal(user, email) {
                 }, 1500);
             }
         } catch (error) {
-            console.error('Error checking verification:', error);
         }
-    }, 3000); // Check every 3 seconds
+    }, 3000);
 }
-
 function updateProfileDisplay(user, userData) {
     const profileSection = document.getElementById('user-profile-section');
-    
     if (user && profileSection) {
         const displayName = user.displayName || userData?.fullName || 'User';
         const roomNumber = userData?.roomNumber || '';
-        
         profileSection.innerHTML = `
             <div class="profile-name-display">
                 <span id="profile-name-display">${displayName}</span>
                 <span class="profile-room-badge" id="profile-room-display">${roomNumber ? 'Room ' + roomNumber : ''}</span>
             </div>
         `;
-        
         if (roomNumber) {
             userRoomNumber = roomNumber;
             localStorage.setItem('userRoom', roomNumber);
         }
     }
 }
-
 function updateProfileDisplayForGuest() {
     const profileSection = document.getElementById('user-profile-section');
-    
     if (profileSection) {
         profileSection.innerHTML = `
             <div class="profile-name-display" id="guest-login-btn" title="Click to login" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); cursor: pointer;">
@@ -1852,62 +1501,30 @@ function updateProfileDisplayForGuest() {
         }
     }
 }
-
-async function checkAndDeleteOldAccounts() {
+async function cleanupUnverifiedUsers() {
+    if (!db) return;
     try {
-        if (!firebaseAuth || !db) return;
-        
         const usersRef = ref(db, 'users');
         const snapshot = await get(usersRef);
-        
         if (!snapshot.exists()) return;
-        
         const users = snapshot.val();
-        const now = new Date();
-        const sixMonthsAgo = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000); // Approximate 6 months
-        
-        for (const userId in users) {
-            const userData = users[userId];
-            if (userData.createdAt) {
-                const createdDate = new Date(userData.createdAt);
-                if (createdDate < sixMonthsAgo) {
-                    // Delete user data from database
-                    const userRef = ref(db, `users/${userId}`);
-                    await remove(userRef);
-                    
-                    // Try to delete the user account
-                    try {
-                        const user = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js").then(() => {
-                            return auth.getUser ? auth.getUser() : null;
-                        });
-                        if (user && user.uid === userId) {
-                            // User is currently logged in, they'll be logged out
-                            await signOut(firebaseAuth);
-                        }
-                    } catch (e) {
-                        // Could not delete auth user, but database record is deleted
-                        console.log('Auto-delete: Database record removed for old account:', userId);
-                    }
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        for (const uid in users) {
+            const userData = users[uid];
+            if (userData.emailVerified === false && userData.createdAt) {
+                const createdTime = new Date(userData.createdAt).getTime();
+                if (now - createdTime > twentyFourHours) {
+                    await remove(ref(db, `users/${uid}`));
                 }
             }
         }
-    } catch (error) {
-        console.error('Error in auto-delete check:', error);
-    }
+    } catch (error) {}
 }
-
-// Run auto-delete check periodically
-function startAutoDeleteCheck() {
-    // Check every hour
-    checkAndDeleteOldAccounts();
-    setInterval(checkAndDeleteOldAccounts, 60 * 60 * 1000);
-}
-
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
-
 function isValidRoomNumber(roomNumber) {
     const room = parseInt(roomNumber);
     if (isNaN(room) || room < 102 || room > 617) return false;
@@ -1919,31 +1536,25 @@ function isValidRoomNumber(roomNumber) {
     ];
     return !excludedRooms.includes(room);
 }
-
 async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('auth-login-email').value.trim();
     const password = document.getElementById('auth-login-password').value;
-
     if (!isValidEmail(email)) {
         showAuthAlert('Please enter a valid email address', 'error');
         return;
     }
-
     const loginBtn = document.getElementById('auth-login-btn');
     loginBtn.disabled = true;
     loginBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
-
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-        
         if (!userCredential.user.emailVerified) {
             showAuthAlert('Please verify your email before logging in. Check your inbox.', 'warning');
             loginBtn.disabled = false;
             loginBtn.innerHTML = '<span class="btn-text">Login</span>';
             return;
         }
-        
         showAuthAlert('Login successful!', 'success');
         setTimeout(() => {
             hideAuthModal();
@@ -1963,7 +1574,6 @@ async function handleLogin(e) {
         loginBtn.innerHTML = '<span class="btn-text">Login</span>';
     }
 }
-
 async function handleRegister(e) {
     e.preventDefault();
     const name = document.getElementById('auth-register-name').value.trim();
@@ -1971,7 +1581,6 @@ async function handleRegister(e) {
     const roomNumber = document.getElementById('auth-register-room').value.trim();
     const password = document.getElementById('auth-register-password').value;
     const confirmPassword = document.getElementById('auth-register-confirm-password').value;
-
     if (!name) {
         showAuthAlert('Please enter your full name', 'error');
         return;
@@ -1992,29 +1601,23 @@ async function handleRegister(e) {
         showAuthAlert('Passwords do not match', 'error');
         return;
     }
-
     const registerBtn = document.getElementById('auth-register-btn');
     registerBtn.disabled = true;
     registerBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
-
     try {
         const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
         await updateProfile(userCredential.user, { displayName: name });
-        
         const userRef = ref(db, `users/${userCredential.user.uid}`);
         await set(userRef, {
             fullName: name,
             email: email,
             roomNumber: parseInt(roomNumber),
+            emailVerified: false,
             createdAt: new Date().toISOString()
         });
-
         await sendEmailVerification(userCredential.user);
-        
         registerBtn.disabled = false;
         registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
-        
-        // Show verification waiting modal
         showVerificationWaitingModal(userCredential.user, email);
     } catch (error) {
         let errorMessage = 'Registration failed. Please try again.';
@@ -2028,30 +1631,28 @@ async function handleRegister(e) {
         registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
     }
 }
-
 async function handleGoogleSignIn() {
     try {
         const result = await signInWithPopup(firebaseAuth, googleProvider);
         const user = result.user;
-        
         const userRef = ref(db, `users/${user.uid}`);
         const snapshot = await get(userRef);
-        
         if (!snapshot.exists() || !snapshot.val().roomNumber) {
             const roomNumber = prompt('Please enter your room number (e.g., 302):');
             if (!roomNumber || !isValidRoomNumber(roomNumber)) {
                 showAuthAlert('Please enter a valid room number to continue', 'error');
                 return;
             }
-            
             await set(userRef, {
                 fullName: user.displayName || 'User',
                 email: user.email,
                 roomNumber: parseInt(roomNumber),
+                emailVerified: true,
                 createdAt: snapshot.exists() ? snapshot.val().createdAt : new Date().toISOString()
             });
+        } else {
+            await update(userRef, { emailVerified: true });
         }
-        
         showAuthAlert('Login successful!', 'success');
         setTimeout(() => {
             hideAuthModal();
@@ -2061,20 +1662,16 @@ async function handleGoogleSignIn() {
         showAuthAlert('Google sign-in failed. Please try again.', 'error');
     }
 }
-
 async function handleForgotPassword(e) {
     e.preventDefault();
     const email = document.getElementById('auth-forgot-email').value.trim();
-
     if (!isValidEmail(email)) {
         showAuthAlert('Please enter a valid email address', 'error');
         return;
     }
-
     const forgotBtn = document.getElementById('auth-forgot-btn');
     forgotBtn.disabled = true;
     forgotBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
-
     try {
         await sendPasswordResetEmail(firebaseAuth, email);
         showAuthAlert('Password reset email sent! Check your inbox.', 'success');
@@ -2090,7 +1687,6 @@ async function handleForgotPassword(e) {
         forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
     }
 }
-
 async function checkAuth() {
     const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
     let firebaseApp;
@@ -2100,12 +1696,9 @@ async function checkAuth() {
         firebaseApp = initializeApp(firebaseConfig);
     }
     firebaseAuth = getAuth(firebaseApp);
-    
     initAuthModal();
-    
     const urlParams = new URLSearchParams(window.location.search);
     const isViewOnlyRequested = urlParams.get('viewOnly') === 'true';
-    
     return new Promise((resolve) => {
         onAuthStateChanged(firebaseAuth, async (user) => {
             if (!user) {
@@ -2123,22 +1716,18 @@ async function checkAuth() {
                 resolve(false);
                 return;
             }
-            
             if (!user.emailVerified) {
                 showAuthModal();
                 showAuthAlert('Please verify your email to continue. Check your inbox.', 'warning');
                 resolve(false);
                 return;
             }
-            
             hideAuthModal();
-            
             userId = user.uid;
             userEmail = user.email;
             userName = user.displayName || 'User';
             isLoggedIn = true;
             isViewOnlyMode = false;
-
             if (isViewOnlyRequested) {
                 urlParams.delete('viewOnly');
                 const newUrl = urlParams.toString()
@@ -2146,15 +1735,14 @@ async function checkAuth() {
                     : window.location.pathname;
                 window.history.replaceState({}, document.title, newUrl);
             }
-            
             localStorage.setItem('userId', user.uid);
             localStorage.setItem('userEmail', user.email);
             localStorage.setItem('userName', userName);
-            
             try {
                 const userRef = ref(db, `users/${user.uid}`);
                 const snapshot = await get(userRef);
                 if (snapshot.exists()) {
+                    await update(userRef, { emailVerified: true });
                     const userData = snapshot.val();
                     if (userData.fullName) {
                         userName = userData.fullName;
@@ -2169,43 +1757,29 @@ async function checkAuth() {
                     updateProfileDisplay(user, null);
                 }
             } catch (error) {
-                console.error('Error fetching user data:', error);
                 updateProfileDisplay(user, null);
             }
-            
             resolve(true);
         });
     });
 }
-
 async function init() {
     updateSoundToggle();
-
     const savedColorTheme = localStorage.getItem('fas_color_theme') || 'indigo';
     applyColorTheme(savedColorTheme);
-
     updateCountdown();
     setInterval(updateCountdown, 1000);
-
     requestNotificationPermission();
-
     checkInputWindowAndNotify();
     setInterval(checkInputWindowAndNotify, 60000);
-
     setTimeout(() => {
         hidePageLoader();
     }, 8000);
-
     await initializeFirebase();
-    
     await checkAuth();
-    
     initializeDatePicker();
-
     localStorage.removeItem('fas_selected_floor');
     currentFloor = null;
-
-
     if (floorSelect) floorSelect.value = '';
     if (noFloorMessage) noFloorMessage.classList.remove('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');
@@ -2214,5 +1788,4 @@ async function init() {
     if (timeNote) timeNote.classList.add('hidden');
     if (dateDisplay) dateDisplay.innerHTML = '';
 }
-
 init();
