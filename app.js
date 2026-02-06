@@ -985,6 +985,15 @@ if (floorSelect) {
         selectFloor(e.target.value);
     });
 }
+ALL_FLOORS.forEach(floor => {
+    const card = document.getElementById(`floor-card-${floor}`);
+    if (card) {
+        card.addEventListener('click', () => {
+            if (floorSelect) floorSelect.value = String(floor);
+            selectFloor(floor);
+        });
+    }
+});
 function setupRealtimeListener(dateKey = null) {
     if (!db) return;
     if (!currentFloor) return;
