@@ -18,10 +18,10 @@
         gap: 8px;
     }
     .input-number {
-        font-size: 2rem;
-        padding: 12px 16px;
-        width: clamp(90px, 32vw, 150px);
-        min-width: 80px;
+        font-size: 1.5rem;
+        padding: 6px 10px;
+        width: clamp(70px, 28vw, 120px);
+        min-width: 65px;
     }
     #notification-container {
         top: 0.75rem;
@@ -31,7 +31,30 @@
         font-size: 2.8rem;
     }
     .room-card {
-        padding: 10px;
+        padding: 8px;
+    }
+    .room-card .text-lg {
+        font-size: 0.95rem;
+    }
+    .room-card .text-sm {
+        font-size: 0.7rem;
+        margin-bottom: 2px !important;
+    }
+    .room-card .mb-1 {
+        margin-bottom: 2px !important;
+    }
+    .room-card .mb-2 {
+        margin-bottom: 4px !important;
+    }
+    .room-card .mt-3 {
+        margin-top: 4px !important;
+    }
+    .progress-track {
+        height: 4px;
+    }
+    .progress-label {
+        font-size: 10px;
+        margin-top: 2px !important;
     }
     .countdown-fixed {
         top: 8px;
@@ -69,20 +92,20 @@
         gap: 14px;
     }
     .room-card {
-        padding: 16px;
-        border-radius: 18px;
+        padding: 8px;
+        border-radius: 14px;
     }
     .input-number {
-        font-size: 2rem;
-        padding: 12px 16px;
-        width: clamp(90px, 45vw, 150px);
-        min-width: 80px;
+        font-size: 1.4rem;
+        padding: 5px 8px;
+        width: clamp(65px, 35vw, 120px);
+        min-width: 60px;
     }
     .progress-track {
-        height: 8px;
+        height: 4px;
     }
     .progress-label {
-        font-size: 11px;
+        font-size: 10px;
     }
     #total-count-display {
         font-size: 3.5rem;
@@ -126,22 +149,22 @@
         gap: 10px;
     }
     .room-card {
-        padding: 12px;
-        border-radius: 14px;
-        min-height: 110px;
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+        padding: 8px;
+        border-radius: 12px;
+        min-height: auto;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     }
     .room-card .text-lg {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
     .room-card .text-sm {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
     }
     .input-number {
-        font-size: 2rem;
-        padding: 12px 16px;
-        width: clamp(90px, 55vw, 150px);
-        min-width: 80px;
+        font-size: 1.3rem;
+        padding: 4px 6px;
+        width: clamp(60px, 40vw, 110px);
+        min-width: 55px;
     }
     .input-with-controls {
         gap: 6px;
@@ -177,10 +200,10 @@
         gap: 6px;
     }
     .input-number {
-        width: clamp(90px, 65vw, 150px);
-        min-width: 80px;
-        font-size: 2rem;
-        padding: 12px 16px;
+        width: clamp(55px, 50vw, 110px);
+        min-width: 50px;
+        font-size: 1.2rem;
+        padding: 4px 6px;
     }
     #total-count-display {
         font-size: 2.5rem;
@@ -206,10 +229,10 @@
         gap: 6px;
     }
     .input-number {
-        width: clamp(90px, 70vw, 150px);
-        min-width: 80px;
-        font-size: 2rem;
-        padding: 12px 16px;
+        width: clamp(50px, 55vw, 100px);
+        min-width: 45px;
+        font-size: 1.2rem;
+        padding: 4px 6px;
     }
     #total-count-display {
         font-size: 2.6rem;

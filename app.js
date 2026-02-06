@@ -45,7 +45,7 @@ let isLoggedIn = true;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = (23 * 60);
+const ALLOWED_END_MINUTES = (22 * 60);
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
 function getRoomsForFloor(floorNumber) {
