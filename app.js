@@ -45,7 +45,7 @@ let isLoggedIn = true;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = (22 * 60);
+const ALLOWED_END_MINUTES = (23 * 60);
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
 function getRoomsForFloor(floorNumber) {
@@ -831,7 +831,7 @@ function renderRoomCard(roomNumber, currentCount) {
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
     const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode;
-    const displayValue = (currentCount === null || currentCount === undefined) ? '-' : String(currentCount);
+    const displayValue = (currentCount === null || currentCount === undefined) ? '-' : (currentCount === 0 ? '🚫' : String(currentCount));
     if (existingCard) {
         const input = existingCard.querySelector('input');
         if (input && document.activeElement !== input) {
@@ -1046,7 +1046,7 @@ function setupRealtimeListener(dateKey = null) {
             }
             if (prev !== presentCount) {
                 const inputEl = existing.querySelector(`#input-${room}`);
-                const displayValue = (presentCount === null || presentCount === undefined) ? '-' : String(presentCount);
+                const displayValue = (presentCount === null || presentCount === undefined) ? '-' : (presentCount === 0 ? '🚫' : String(presentCount));
                 if (inputEl && document.activeElement !== inputEl) {
                     inputEl.value = displayValue;
                 }
@@ -1170,12 +1170,16 @@ async function updateAttendance(roomNumber, value) {
             updated_by: userEmail
         });
         await logRoomUpdate(roomNumber, currentFloor, count);
-        showNotification(`Thank you ${userName} - Room ${roomNumber} updated (${count})`, 'success', 2500);
+        const msg = count === 0
+            ? `🚫 Room ${roomNumber} marked as empty - No one in hall`
+            : `Thank you ${userName} - Room ${roomNumber} updated (${count})`;
+        showNotification(msg, 'success', 2500);
         playSound('success');
         try {
             updateRoomBadge(roomNumber, count);
             updateRoomProgress(roomNumber, count);
             const inputEl = document.getElementById(`input-${roomNumber}`);
+            if (inputEl && count === 0) inputEl.value = '🚫';
             if (inputEl) {
                 inputEl.classList.add('input-saved');
                 setTimeout(() => inputEl.classList.remove('input-saved'), 900);
@@ -1270,14 +1274,23 @@ function updateRoomBadge(roomNumber, count) {
     const card = document.getElementById(`room_${roomNumber}`);
     if (!badge) return;
     badge.className = 'room-badge';
-    if (card) card.classList.remove('room-empty');
-    if (count === null || count === undefined || count === 0) {
+    if (card) {
+        card.classList.remove('room-empty', 'room-no-one');
+    }
+    if (count === null || count === undefined) {
         badge.textContent = '-';
         badge.classList.add('badge-empty');
+        badge.style.display = 'none';
         if (card) card.classList.add('room-empty');
+    } else if (count === 0) {
+        badge.textContent = '🚫 Not in Hall';
+        badge.classList.add('badge-no-one');
+        badge.style.display = 'inline-block';
+        if (card) card.classList.add('room-no-one');
     } else {
         badge.textContent = 'Active';
         badge.classList.add('badge-active');
+        badge.style.display = 'inline-block';
     }
 }
 function updateRoomProgress(roomNumber, count) {
