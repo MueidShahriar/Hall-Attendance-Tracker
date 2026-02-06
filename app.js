@@ -831,7 +831,7 @@ function renderRoomCard(roomNumber, currentCount) {
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
     const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode;
-    const displayValue = (currentCount === null || currentCount === undefined) ? '-' : (currentCount === 0 ? '🚫' : String(currentCount));
+    const displayValue = (currentCount === null || currentCount === undefined) ? '0' : (currentCount === 0 ? '🚫' : String(currentCount));
     if (existingCard) {
         const input = existingCard.querySelector('input');
         if (input && document.activeElement !== input) {
@@ -870,7 +870,7 @@ function renderRoomCard(roomNumber, currentCount) {
                 inputmode="numeric"
                 id="input-${roomNumber}"
                 value="${displayValue}"
-                placeholder="-"
+                placeholder="0"
                 class="input-number"
                 ${!isEditable ? 'disabled' : ''}
                 title="${inputTitle}"
@@ -963,6 +963,12 @@ function selectFloor(floorNumber) {
     ROOMS = getRoomsForFloor(currentFloor);
     displayedCounts = {};
     const floorOrdinal = getOrdinalSuffix(currentFloor);
+    ALL_FLOORS.forEach(f => {
+        const fc = document.getElementById(`floor-card-${f}`);
+        if (fc) fc.classList.remove('floor-selected');
+    });
+    const selectedCard = document.getElementById(`floor-card-${currentFloor}`);
+    if (selectedCard) selectedCard.classList.add('floor-selected');
     if (noFloorMessage) noFloorMessage.classList.add('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
     if (roomContainer) roomContainer.classList.remove('hidden');
@@ -1046,7 +1052,7 @@ function setupRealtimeListener(dateKey = null) {
             }
             if (prev !== presentCount) {
                 const inputEl = existing.querySelector(`#input-${room}`);
-                const displayValue = (presentCount === null || presentCount === undefined) ? '-' : (presentCount === 0 ? '🚫' : String(presentCount));
+                const displayValue = (presentCount === null || presentCount === undefined) ? '0' : (presentCount === 0 ? '🚫' : String(presentCount));
                 if (inputEl && document.activeElement !== inputEl) {
                     inputEl.value = displayValue;
                 }
@@ -1274,23 +1280,13 @@ function updateRoomBadge(roomNumber, count) {
     const card = document.getElementById(`room_${roomNumber}`);
     if (!badge) return;
     badge.className = 'room-badge';
+    badge.style.display = 'none';
     if (card) {
         card.classList.remove('room-empty', 'room-no-one');
     }
     if (count === null || count === undefined) {
-        badge.textContent = '-';
-        badge.classList.add('badge-empty');
-        badge.style.display = 'none';
-        if (card) card.classList.add('room-empty');
     } else if (count === 0) {
-        badge.textContent = '🚫 Not in Hall';
-        badge.classList.add('badge-no-one');
-        badge.style.display = 'inline-block';
         if (card) card.classList.add('room-no-one');
-    } else {
-        badge.textContent = 'Active';
-        badge.classList.add('badge-active');
-        badge.style.display = 'inline-block';
     }
 }
 function updateRoomProgress(roomNumber, count) {
@@ -1301,7 +1297,7 @@ function updateRoomProgress(roomNumber, count) {
     const capacity = 6;
     const actualCount = (count === null || count === undefined) ? 0 : count;
     const percent = Math.min(100, Math.round((actualCount / capacity) * 100));
-    const displayLabel = (count === null || count === undefined) ? '-' : actualCount;
+    const displayLabel = (count === null || count === undefined) ? '0' : actualCount;
     const fill = track.querySelector('.progress-fill');
     if (fill) {
         fill.style.width = percent + '%';
@@ -1803,6 +1799,10 @@ async function init() {
     localStorage.removeItem('fas_selected_floor');
     currentFloor = null;
     if (floorSelect) floorSelect.value = '';
+    ALL_FLOORS.forEach(f => {
+        const fc = document.getElementById(`floor-card-${f}`);
+        if (fc) fc.classList.remove('floor-selected');
+    });
     if (noFloorMessage) noFloorMessage.classList.remove('hidden');
     if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');
     if (roomContainer) roomContainer.classList.add('hidden');
