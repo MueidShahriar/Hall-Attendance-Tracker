@@ -149,7 +149,7 @@
                     </div>
                 </div>
             </header>
-            <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-md mb-3 max-w-xl mx-auto">
+            <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-md mb-3 max-w-xl mx-auto" style="display:none;">
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
                     <div class="date-row w-full sm:max-w-md">
                         <label for="date-picker" class="text-sm font-semibold text-gray-700">View Attendance for:</label>
@@ -167,7 +167,7 @@
                     </div>
                 </div>
             </div>
-            <div id="floor-selector-container" class="bg-white p-4 sm:p-5 rounded-2xl shadow-md mb-4 max-w-xl mx-auto">
+            <div id="floor-selector-container" class="bg-white p-4 sm:p-5 rounded-2xl shadow-md mb-4 max-w-xl mx-auto" style="display:none;">
                 <label for="floor-select" class="block text-sm font-semibold text-gray-700 mb-2 text-center">🏢 Select Floor</label>
                 <select 
                     id="floor-select" 
@@ -191,15 +191,16 @@
             <p id="loading-status" class="text-sm text-gray-600 mt-1 text-center hidden">Initializing database and loading data...</p>
             <p id="date-display" class="text-xs text-gray-500 mt-1 text-center"></p>
             <p id="time-note" class="text-sm font-bold text-red-600 mt-1 text-center hidden">Note: Attendance input is only allowed between 6:30 PM to 10:00 PM.</p>
-            <div id="no-floor-message" class="text-center py-8 mt-4">       
-                <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl shadow-xl max-w-md mx-auto mb-8">
+            <div id="no-floor-message" class="text-center py-4 mt-2">       
+                <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl shadow-xl max-w-md mx-auto mb-3">
                     <p class="text-sm uppercase font-medium text-white/90 mb-2 text-center tracking-wider">🏛️ Total Students Present in Hall</p>
                     <div class="flex justify-center items-center">
                         <span id="total-hall-count" class="text-5xl sm:text-6xl font-bold text-white">0</span>
                     </div>
                     <p class="text-xs text-white/70 mt-2 text-center">Combined attendance across all floors</p>
                 </div>
-                <div id="floor-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6 max-w-2xl mx-auto">
+                <p class="text-sm font-bold text-red-500 mt-2 text-center">NB: Click on a floor card below to view & input room attendance</p>
+                <div id="floor-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 max-w-2xl mx-auto">
                     <div class="floor-card p-4 rounded-2xl" id="floor-card-1">
                         <div class="flex items-center justify-between mb-2">
                             <div class="text-base font-bold text-gray-800">🏠 1st Floor</div>
@@ -252,7 +253,7 @@
              </div>
         </div>
         <div id="room-container" class="max-w-6xl mx-auto hidden">
-            <h2 id="room-section-title" class="text-xl font-bold text-gray-800 mb-4 text-center">Room Attendance Inputs</h2>
+            <h2 id="room-section-title" class="text-sm font-semibold text-gray-600 mb-3 text-center">Room Attendance Inputs</h2>
             <div class="room-search-container mb-4 flex justify-center">
                 <div class="relative">
                     <span class="search-icon">🔍</span>
@@ -336,7 +337,7 @@
     });
     </script>
     <script type="module" src="app.js"></script>
-    <footer class="w-full py-6 mt-10 text-center text-gray-600 text-sm border-t-2 border-gray-300 bg-gray-50">
+    <footer class="w-full py-6 mt-5 text-center text-gray-600 text-sm border-t-2 border-gray-300 bg-gray-50">
         <p>Developed and maintained by <b style="color: #4c52f4;"> Md. Mueid Shahriar</b>
             <br>
             &copy; 2026 Hall Attendance Tracker. All rights reserved.
