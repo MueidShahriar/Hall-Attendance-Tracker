@@ -96,6 +96,10 @@ function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
+
+function isGmailEmail(email) {
+    return email.toLowerCase().endsWith('@gmail.com');
+}
 function isValidRoomNumber(roomNumber) {
     const room = parseInt(roomNumber);
     if (isNaN(room) || room < 102 || room > 617) return false;
@@ -229,6 +233,10 @@ registerForm.addEventListener('submit', async (e) => {
     }
     if (!isValidEmail(email)) {
         showFieldError('register-email', 'register-email-error');
+        hasError = true;
+    } else if (!isGmailEmail(email)) {
+        showFieldError('register-email', 'register-email-error');
+        document.getElementById('register-email-error').textContent = 'Only @gmail.com emails are allowed';
         hasError = true;
     }
     if (!isValidRoomNumber(room)) {

@@ -56,8 +56,8 @@
                 </div>
                 <div class="auth-form-group">
                     <label class="auth-form-label" for="auth-register-email">Email Address</label>
-                    <input type="email" id="auth-register-email" class="auth-input" placeholder="Enter your email" required>
-                    <p class="auth-error-message" id="auth-register-email-error">Please enter a valid email</p>
+                    <input type="email" id="auth-register-email" class="auth-input" placeholder="Enter your Gmail address" required pattern="[a-zA-Z0-9._%+\-]+@gmail\.com" title="Only @gmail.com emails are allowed">
+                    <p class="auth-error-message" id="auth-register-email-error">Only @gmail.com emails are allowed</p>
                 </div>
                 <div class="auth-form-group">
                     <label class="auth-form-label" for="auth-register-room">Room Number</label>

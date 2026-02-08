@@ -100,8 +100,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="register-email">Email Address</label>
-                    <input type="email" id="register-email" class="auth-input" placeholder="Enter your email" required>
-                    <p class="error-message" id="register-email-error">Please enter a valid email</p>
+                    <input type="email" id="register-email" class="auth-input" placeholder="Enter your Gmail address" required pattern="[a-zA-Z0-9._%+\-]+@gmail\.com" title="Only @gmail.com emails are allowed">
+                    <p class="error-message" id="register-email-error">Only @gmail.com emails are allowed</p>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="register-room">Room Number</label>

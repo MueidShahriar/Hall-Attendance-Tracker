@@ -1551,6 +1551,9 @@ function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
+function isGmailEmail(email) {
+    return email.toLowerCase().endsWith('@gmail.com');
+}
 function isValidRoomNumber(roomNumber) {
     const room = parseInt(roomNumber);
     if (isNaN(room) || room < 102 || room > 617) return false;
@@ -1613,6 +1616,10 @@ async function handleRegister(e) {
     }
     if (!isValidEmail(email)) {
         showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+    if (!isGmailEmail(email)) {
+        showAuthAlert('Only @gmail.com emails are allowed. Temp/disposable emails are not accepted.', 'error');
         return;
     }
     if (!isValidRoomNumber(roomNumber)) {
