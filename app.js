@@ -51,7 +51,7 @@ const ALLOWED_END_MINUTES = (22 * 60);
 // Boral Hall, BAUET, Qadirabad Cantonment, Natore (Plus Code: 72Q5+QGM)
 const HALL_LATITUDE = 24.289462;
 const HALL_LONGITUDE = 89.008797;
-const ALLOWED_RADIUS_METERS = 200;
+const ALLOWED_RADIUS_METERS = 100;
 let isWithinHallRadius = false;
 let userLatitude = null;
 let userLongitude = null;
@@ -589,7 +589,7 @@ function checkGeoLocation() {
                 showGeoToast('Location verified! You can mark attendance.', 'success');
             } else {
                 isWithinHallRadius = false;
-                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away — max ${ALLOWED_RADIUS_METERS}m)`);
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away - max ${ALLOWED_RADIUS_METERS}m)`);
                 showGeoToast("You're out of Hall", 'error');
                 applyLocationGating();
             }
