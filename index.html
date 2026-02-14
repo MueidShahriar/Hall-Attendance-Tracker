@@ -113,6 +113,7 @@
     </div>
     <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
     <div id="app" class="min-h-screen pt-2 px-4 sm:pt-4 sm:px-6">
+        <div id="geo-toast-container" class="geo-toast-container"></div>
         <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4">
         </div>
         <div id="countdown-container" class="countdown-fixed hidden">
@@ -149,6 +150,11 @@
                     </div>
                 </div>
             </header>
+            <!-- Geo-Location Status Banner -->
+            <div id="geo-location-banner" class="geo-location-banner hidden">
+                <span id="geo-location-icon" class="geo-location-icon">📡</span>
+                <span id="geo-location-text" class="geo-location-text">Checking location...</span>
+            </div>
             <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-md mb-3 max-w-xl mx-auto" style="display:none;">
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
                     <div class="date-row w-full sm:max-w-md">

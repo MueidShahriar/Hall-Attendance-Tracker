@@ -46,6 +46,17 @@ let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
 const ALLOWED_END_MINUTES = (22 * 60);
+
+// ===== GEO-LOCATION CONFIGURATION =====
+// Boral Hall, BAUET, Qadirabad Cantonment, Natore
+const HALL_LATITUDE = 24.260600;
+const HALL_LONGITUDE = 88.988700;
+const ALLOWED_RADIUS_METERS = 200;
+let isWithinHallRadius = false;
+let userLatitude = null;
+let userLongitude = null;
+let geoLocationChecked = false;
+let geoWatchId = null;
 const SECOND_REMINDER_MINUTES = ALLOWED_END_MINUTES - 60;
 const FINAL_REMINDER_MINUTES = ALLOWED_END_MINUTES - 15;
 function getRoomsForFloor(floorNumber) {
@@ -495,6 +506,158 @@ async function cleanupOldData() {
     } catch (error) {
     }
 }
+// ===== GEO-LOCATION: Haversine Distance Calculation =====
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth's radius in meters
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // distance in meters
+}
+
+function updateLocationBanner(status, message) {
+    const banner = document.getElementById('geo-location-banner');
+    const bannerText = document.getElementById('geo-location-text');
+    const bannerIcon = document.getElementById('geo-location-icon');
+    if (!banner || !bannerText) return;
+    banner.className = 'geo-location-banner';
+    banner.classList.add(`geo-${status}`);
+    banner.classList.remove('hidden');
+    bannerText.textContent = message;
+    if (bannerIcon) {
+        bannerIcon.textContent = status === 'inside' ? '📍' : status === 'outside' ? '🚫' : status === 'error' ? '⚠️' : '📡';
+    }
+}
+
+function showGeoToast(message, type = 'error') {
+    const container = document.getElementById('geo-toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `geo-toast geo-toast-${type}`;
+    toast.innerHTML = `
+        <span class="geo-toast-icon">${type === 'error' ? '🚫' : type === 'success' ? '✅' : '📍'}</span>
+        <span class="geo-toast-message">${message}</span>
+        <button class="geo-toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'geoToastSlideOut 0.4s ease forwards';
+        setTimeout(() => toast.remove(), 400);
+    }, 6000);
+}
+
+function applyLocationGating() {
+    const allInputs = document.querySelectorAll('.input-number');
+    const roomCards = document.querySelectorAll('.room-card');
+    if (!isWithinHallRadius && geoLocationChecked && isLoggedIn && !isViewOnlyMode) {
+        allInputs.forEach(input => {
+            input.disabled = true;
+            input.style.opacity = '0.4';
+            input.style.cursor = 'not-allowed';
+            input.title = "You're outside the hall area. Attendance disabled.";
+        });
+        roomCards.forEach(card => {
+            card.classList.add('geo-disabled');
+        });
+    }
+}
+
+function checkGeoLocation() {
+    if (!navigator.geolocation) {
+        geoLocationChecked = true;
+        isWithinHallRadius = false;
+        updateLocationBanner('error', 'Geolocation is not supported by your browser');
+        showGeoToast("Your browser doesn't support geolocation. Attendance disabled.", 'error');
+        applyLocationGating();
+        return;
+    }
+    updateLocationBanner('checking', 'Checking your location...');
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            const distance = haversineDistance(userLatitude, userLongitude, HALL_LATITUDE, HALL_LONGITUDE);
+            geoLocationChecked = true;
+            if (distance <= ALLOWED_RADIUS_METERS) {
+                isWithinHallRadius = true;
+                updateLocationBanner('inside', `You're inside the hall area (${Math.round(distance)}m away)`);
+                showGeoToast('Location verified! You can mark attendance.', 'success');
+            } else {
+                isWithinHallRadius = false;
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away — max ${ALLOWED_RADIUS_METERS}m)`);
+                showGeoToast("You're out of Hall", 'error');
+                applyLocationGating();
+            }
+            // Start watching position for real-time updates
+            startGeoWatch();
+        },
+        (error) => {
+            geoLocationChecked = true;
+            isWithinHallRadius = false;
+            let errorMsg = 'Location access denied. Attendance disabled.';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg = 'Location permission denied. Please allow location access to mark attendance.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg = 'Location unavailable. Please check your GPS settings.';
+                    break;
+                case error.TIMEOUT:
+                    errorMsg = 'Location request timed out. Please try again.';
+                    break;
+            }
+            updateLocationBanner('error', errorMsg);
+            showGeoToast(errorMsg, 'error');
+            applyLocationGating();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+
+function startGeoWatch() {
+    if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            const distance = haversineDistance(userLatitude, userLongitude, HALL_LATITUDE, HALL_LONGITUDE);
+            const wasInside = isWithinHallRadius;
+            if (distance <= ALLOWED_RADIUS_METERS) {
+                isWithinHallRadius = true;
+                updateLocationBanner('inside', `You're inside the hall area (${Math.round(distance)}m away)`);
+                if (!wasInside) {
+                    showGeoToast('You entered the hall area. Attendance enabled!', 'success');
+                    // Re-render rooms to enable inputs
+                    if (currentFloor) {
+                        ROOMS.forEach(room => {
+                            const count = displayedCounts[room] ?? 0;
+                            renderRoomCard(room, count);
+                        });
+                    }
+                }
+            } else {
+                isWithinHallRadius = false;
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away — max ${ALLOWED_RADIUS_METERS}m)`);
+                if (wasInside) {
+                    showGeoToast("You're out of Hall", 'error');
+                    applyLocationGating();
+                }
+            }
+        },
+        null,
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+}
+
 function getMinutesSinceMidnight(date = new Date()) {
     return date.getHours() * 60 + date.getMinutes();
 }
@@ -836,7 +999,7 @@ function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
-    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode;
+    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode && (isWithinHallRadius || !geoLocationChecked);
     const displayValue = (currentCount === null || currentCount === undefined) ? '0' : (currentCount === 0 ? '🚫' : String(currentCount));
     if (existingCard) {
         const input = existingCard.querySelector('input');
@@ -1154,6 +1317,10 @@ async function updateAttendance(roomNumber, value) {
     if (!db || !currentFloor) return;
     if (!isLoggedIn) {
         showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
+        return;
+    }
+    if (geoLocationChecked && !isWithinHallRadius) {
+        showGeoToast("You're out of Hall", 'error');
         return;
     }
     if (!isWithinAllowedTime()) {
@@ -1771,6 +1938,8 @@ async function checkAuth() {
             localStorage.setItem('userId', user.uid);
             localStorage.setItem('userEmail', user.email);
             localStorage.setItem('userName', userName);
+            // Trigger geo-location check immediately after login
+            checkGeoLocation();
             try {
                 const userRef = ref(db, `users/${user.uid}`);
                 const snapshot = await get(userRef);

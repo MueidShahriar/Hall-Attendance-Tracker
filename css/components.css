@@ -280,3 +280,141 @@
     border-color: var(--theme-primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
+
+/* ===== GEO-LOCATION BANNER ===== */
+.geo-location-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all var(--transition-normal);
+    max-width: 42rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+.geo-location-banner.hidden {
+    display: none;
+}
+.geo-location-banner.geo-checking {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+.geo-location-banner.geo-inside {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+.geo-location-banner.geo-outside {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+.geo-location-banner.geo-error {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.geo-location-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.geo-location-text {
+    flex: 1;
+}
+
+/* ===== GEO TOAST ===== */
+.geo-toast-container {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+    width: calc(100% - 32px);
+    pointer-events: none;
+}
+.geo-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    animation: geoToastSlideIn 0.4s ease;
+    pointer-events: auto;
+}
+.geo-toast-error {
+    background: #dc2626;
+    color: white;
+}
+.geo-toast-success {
+    background: #059669;
+    color: white;
+}
+.geo-toast-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.geo-toast-message {
+    flex: 1;
+}
+.geo-toast-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.geo-toast-close:hover {
+    color: white;
+}
+@keyframes geoToastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(60px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes geoToastSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(60px);
+    }
+}
+
+/* Geo-disabled room card styling */
+.room-card.geo-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    position: relative;
+}
+.room-card.geo-disabled::after {
+    content: '📍 Outside Hall';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: #dc2626;
+    font-weight: 700;
+    white-space: nowrap;
+}
