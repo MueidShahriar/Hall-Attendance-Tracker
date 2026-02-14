@@ -48,9 +48,9 @@ const ALLOWED_START_MINUTES = (18 * 60) + 30;
 const ALLOWED_END_MINUTES = (22 * 60);
 
 // ===== GEO-LOCATION CONFIGURATION =====
-// Boral Hall, BAUET, Qadirabad Cantonment, Natore
-const HALL_LATITUDE = 24.260600;
-const HALL_LONGITUDE = 88.988700;
+// Boral Hall, BAUET, Qadirabad Cantonment, Natore (Plus Code: 72Q5+QGM)
+const HALL_LATITUDE = 24.289462;
+const HALL_LONGITUDE = 89.008797;
 const ALLOWED_RADIUS_METERS = 200;
 let isWithinHallRadius = false;
 let userLatitude = null;
