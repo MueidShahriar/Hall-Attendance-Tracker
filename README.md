@@ -1,6 +1,6 @@
 # 🏛️ Hall Attendance Tracker
 
-A real-time, browser-based attendance management system for multi-floor student hall accommodation. Track room-wise attendance with email/Google authentication, email verification, activity logging, auto-cleanup of unverified accounts, and a fully responsive UI.
+A real-time, browser-based attendance management system for **Boral Hall, BAUET, Qadirabad Cantonment, Natore**. Track room-wise attendance across 6 floors with geo-location gating, email/Google authentication, email verification, activity logging, auto-cleanup of unverified accounts, and a fully responsive UI.
 
 ---
 
@@ -12,34 +12,53 @@ A real-time, browser-based attendance management system for multi-floor student 
 - Per-floor and total hall attendance auto-recalculates in real-time
 
 ### 2. Multi-Floor Support (6 Floors)
-- Supports **1st to 6th Floor** with dynamic room generation
+- Supports **1st to 6th Floor** with dynamic room generation per floor
+- Specific rooms excluded per floor (e.g., 102–106 & 116 on 1st floor, 203 on 2nd floor, 502–505 on 5th floor, 602–605 on 6th floor)
 - Floor overview dashboard with 2×3 grid cards showing live counts
 - Active/Empty dot badges per floor
-- Floor selector dropdown for detailed room view
+- **Clickable floor cards** — tap any floor card to jump directly to room view
+- Floor selector dropdown as an alternative navigation method
 
 ### 3. Room-Wise Attendance
 - Each room supports **0 to 6 students**
 - Visual progress bars showing room occupancy (0/6 to 6/6)
-- Active/Empty badge indicators
+- Rooms with 0 students display **🚫** icon and dashed border styling
 - "My Room" badge for the logged-in user's own room
-- Users can **only edit their own room** — other rooms are read-only
-- Rooms with 0 students shown with dashed border styling
+- Users can **only edit their own room** — other rooms are read-only with dimmed inputs
+- Room search with instant filter and clear button
 
-### 4. Authentication System
+### 4. Geo-Location Based Access Control
+- **GPS-gated attendance** — users must be within **100 meters** of Boral Hall to mark attendance
+- Uses **Haversine distance formula** for accurate Earth-surface distance calculation
+- **Real-time location watching** — continuously monitors user position via `watchPosition()`
+- **Location banner** — persistent status banner showing:
+  - 📡 Checking location...
+  - 📍 Inside hall area (with distance)
+  - 🚫 Outside hall area (with distance)
+  - ⚠️ Location error/denied
+- **Geo-toast notifications** — slide-in toast alerts for location status changes
+- Inputs automatically **disabled when outside** the hall radius
+- Inputs automatically **re-enabled** when user enters the hall area
+- Dedicated **Location Debug Tool** (`location.html`) for verifying GPS coordinates & troubleshooting
+- Hall coordinates: `24.289462, 89.008797` (Plus Code: 72Q5+QGM)
+
+### 5. Authentication System
 - **Email/Password** registration with full validation (name, email, room number, password)
-- **Google Sign-In** via Firebase Auth popup
+- **Gmail-only registration** — only `@gmail.com` emails are accepted; temp/disposable emails rejected
+- **Google Sign-In** via Firebase Auth popup (prompts for room number on first login)
 - **Email Verification** — mandatory before login; verification waiting modal with auto-check every 3 seconds
 - **Spam folder warning** — red notice reminding users to check spam for the verification email
 - **Forgot Password** — sends a password reset link via email
-- **View-Only Mode** — browse attendance data without logging in (no editing)
+- **View-Only Mode** — browse attendance data without logging in (no editing); shows "👁️ View Only" badge
+- **User Profile Display** — logged-in user's name and room number shown in the header
 - Standalone login page (`auth.html`) and in-app auth modal (`index.html`)
 
-### 5. Automatic Unverified User Cleanup (24h)
+### 6. Automatic Unverified User Cleanup (24h)
 - Users who register but **don't verify their email within 24 hours** are automatically deleted from the database
 - Runs on every app initialization
 - Prevents accumulation of temporary/spam email accounts
 
-### 6. Attendance Input Time Window
+### 7. Attendance Input Time Window
 - Updates allowed only between **6:30 PM – 10:00 PM**
 - Draggable countdown timer (mouse + touch) shows:
   - Time remaining to submit (during window)
@@ -49,26 +68,26 @@ A real-time, browser-based attendance management system for multi-floor student 
 - Timer position saved to localStorage
 - Three automatic reminders: window open (6:30 PM), 1 hour left (9:00 PM), 15 min left (9:45 PM)
 
-### 7. Daily Auto-Reset
+### 8. Daily Auto-Reset
 - At 6:00 PM, all room attendance counts reset to 0 for the new day
 - Tracked via `reset_tracker/last_reset` in Firebase
 
-### 8. Data Retention & Cleanup
+### 9. Data Retention & Cleanup
 - **20-day retention** — attendance records, activity logs, room updates, and login logs older than 20 days are automatically purged
 - Runs on every app initialization
 
-### 9. Activity Logging
+### 10. Activity Logging
 - **User Logins**: records email, name, login time, date
 - **Room Updates**: logs each update with room, floor, count, timestamp, user
 - **User Stats**: tracks total update count, last update time per user
 
-### 10. Date-Based Historical View
+### 11. Date-Based Historical View
 - Browse attendance for any previous date via date picker
 - Total hall count updates based on selected date
 - "Today" button for quick reset to current date
 - Historical dates are read-only
 
-### 11. UI Features
+### 12. UI Features
 | Feature | Details |
 |---------|---------|
 | **5 Color Themes** | Blue, Green, Purple, Rose, Indigo/Gold — saved to localStorage |
@@ -76,12 +95,14 @@ A real-time, browser-based attendance management system for multi-floor student 
 | **Confetti Animation** | Canvas-based 150-particle celebration on full capacity |
 | **Room Search** | Filter rooms by number with clear button |
 | **Notifications** | Toast-style (info/warning/success/danger) with auto-dismiss |
+| **Geo-Location Toasts** | Slide-in/out toast alerts for location status changes |
 | **Browser Notifications** | Native OS-level notifications for reminders |
 | **Page Loader** | Animated logo fill with clip-path reveal |
 | **Activity Log Modal** | Filterable by date, user, and room |
 | **Password Toggle** | 👁️/🙈 visibility toggle for all password fields |
+| **User Profile Header** | Displays logged-in user's name and room number |
 
-### 12. Mobile-Optimized
+### 13. Mobile-Optimized
 - Fully responsive layout with breakpoints at 768px, 640px, 480px, 420px, 360px, and 320px
 - Touch-friendly inputs, draggable countdown, and adaptive grid layouts
 
@@ -92,7 +113,8 @@ A real-time, browser-based attendance management system for multi-floor student 
 ```
 ├── index.html          Main application UI with in-app auth modal
 ├── auth.html           Standalone login/register page
-├── app.js              Core application logic & Firebase integration
+├── location.html       GPS location debug tool for verifying hall coordinates
+├── app.js              Core application logic, geo-location & Firebase integration
 ├── auth.js             Standalone auth page logic
 ├── styles.css          Main stylesheet (imports all CSS modules)
 ├── css/
@@ -107,8 +129,6 @@ A real-time, browser-based attendance management system for multi-floor student 
 └── README.md           Documentation
 ```
 
----
-
 ## 🔧 Technologies Used
 
 | Technology | Purpose |
@@ -116,6 +136,8 @@ A real-time, browser-based attendance management system for multi-floor student 
 | **Firebase Realtime Database** | Real-time data sync & storage |
 | **Firebase Authentication** | Email/Password, Google Sign-In, Email Verification |
 | **Firebase Analytics** | Usage tracking |
+| **Geolocation API** | GPS-based hall proximity verification (`getCurrentPosition`, `watchPosition`) |
+| **Haversine Formula** | Earth-surface distance calculation for geo-fencing |
 | **Tailwind CSS (CDN)** | Utility-based styling |
 | **Vanilla JavaScript (ES Modules)** | Application logic |
 | **Web Audio API** | Oscillator-based sound effects (no audio files) |
@@ -148,6 +170,10 @@ users/
         ├── email
         ├── roomNumber
         ├── emailVerified
+        ├── address
+        ├── parentsName
+        ├── department
+        ├── batch
         └── createdAt
 ```
 
@@ -205,8 +231,6 @@ reset_tracker/
   └── last_reset
 ```
 
----
-
 ## 🔐 Authentication Flow
 
 1. User opens the app → Auth modal appears (or redirects to `auth.html`)
@@ -249,13 +273,16 @@ reset_tracker/
 
 ## 👨‍💻 Developer
 
-**Md. Mueid Shahriar**
+Developed and maintained by **Md. Mueid Shahriar**
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mueid16/)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MueidShahriar)
-[![WhatsApp](https://img.shields.io/badge/WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/8801712460423)
+- [LinkedIn](https://www.linkedin.com/in/mueid16/)
+- [GitHub](https://github.com/MueidShahriar)
+- [WhatsApp](https://wa.me/8801712460423)
 
 ---
+
+&copy; 2026 Hall Attendance Tracker. All rights reserved.
+
 
 ## 📄 License
 

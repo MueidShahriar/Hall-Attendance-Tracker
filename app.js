@@ -646,7 +646,7 @@ function startGeoWatch() {
                 }
             } else {
                 isWithinHallRadius = false;
-                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away — max ${ALLOWED_RADIUS_METERS}m)`);
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away - max ${ALLOWED_RADIUS_METERS}m)`);
                 if (wasInside) {
                     showGeoToast("You're out of Hall", 'error');
                     applyLocationGating();
