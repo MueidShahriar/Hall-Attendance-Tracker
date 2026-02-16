@@ -831,14 +831,17 @@ function checkInputWindowAndNotify() {
     const minutes = getMinutesSinceMidnight(now);
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_START_MINUTES + 5 && !sentNotifications.reminder1) {
         showNotification(`🔔 Reminder for ${userId}: Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`, 'info', 10000);
+        sendBrowserNotification('🔔 Attendance Window Open', `Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`);
         sentNotifications.reminder1 = true;
     }
     else if (minutes >= SECOND_REMINDER_MINUTES && minutes < SECOND_REMINDER_MINUTES + 5 && !sentNotifications.reminder2) {
         showNotification(`⏰ Second Reminder for ${userId}: Only 1 hour left! Attendance window closes at 10:00 PM.`, 'warning', 10000);
+        sendBrowserNotification('⏰ 1 Hour Left!', `Only 1 hour left! Attendance window closes at 10:00 PM.`);
         sentNotifications.reminder2 = true;
     }
     else if (minutes >= FINAL_REMINDER_MINUTES && minutes < FINAL_REMINDER_MINUTES + 5 && !sentNotifications.reminder3) {
         showNotification(`🚨 FINAL Reminder for ${userId}: Only 15 minutes left to submit attendance! Window closes at 10:00 PM.`, 'danger', 12000);
+        sendBrowserNotification('🚨 FINAL Reminder!', `Only 15 minutes left to submit attendance! Window closes at 10:00 PM.`);
         sentNotifications.reminder3 = true;
     }
     if (minutes < ALLOWED_START_MINUTES || minutes >= ALLOWED_END_MINUTES) {
