@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 import { 
     getAuth, 
     onAuthStateChanged,
@@ -316,18 +317,49 @@ function updateCountdown() {
 }
 const roomSearch = document.getElementById('room-search');
 const clearSearchBtn = document.getElementById('clear-search');
-function filterRooms(searchTerm) {
-    const term = searchTerm.trim().toLowerCase();
+let activeRoomFilter = 'all';
+
+function filterRooms(searchTerm, statusFilter = null) {
+    const term = (searchTerm || '').trim().toLowerCase();
+    const filter = statusFilter !== null ? statusFilter : activeRoomFilter;
+
     ROOMS.forEach(room => {
         const card = document.getElementById(`room_${room}`);
-        if (card) {
-            if (term === '' || String(room).includes(term)) {
-                card.style.display = '';
-                card.classList.remove('room-hidden');
-            } else {
-                card.style.display = 'none';
-                card.classList.add('room-hidden');
+        if (!card) return;
+
+        let matchesSearch = true;
+        let matchesFilter = true;
+
+        // Search filter
+        if (term !== '' && !String(room).includes(term)) {
+            matchesSearch = false;
+        }
+
+        // Status filter
+        if (filter !== 'all') {
+            const count = displayedCounts[room];
+            switch (filter) {
+                case 'occupied':
+                    matchesFilter = count !== null && count !== undefined && count > 0;
+                    break;
+                case 'empty':
+                    matchesFilter = count === 0 || count === null || count === undefined;
+                    break;
+                case 'full':
+                    matchesFilter = count === 6;
+                    break;
+                case 'my-room':
+                    matchesFilter = userRoomNumber === room;
+                    break;
             }
+        }
+
+        if (matchesSearch && matchesFilter) {
+            card.style.display = '';
+            card.classList.remove('room-hidden');
+        } else {
+            card.style.display = 'none';
+            card.classList.add('room-hidden');
         }
     });
     if (clearSearchBtn) {
@@ -351,6 +383,17 @@ if (clearSearchBtn) {
         filterRooms('');
     });
 }
+
+// Room filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        playSound('click');
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn-active'));
+        btn.classList.add('filter-btn-active');
+        activeRoomFilter = btn.dataset.filter;
+        filterRooms(roomSearch ? roomSearch.value : '');
+    });
+});
 const colorPickerBtn = document.getElementById('color-picker-btn');
 const colorDropdown = document.getElementById('color-picker-dropdown');
 const colorOptions = document.querySelectorAll('.color-option');
@@ -915,6 +958,68 @@ async function initializeFirebase() {
         hidePageLoader();
     }
 }
+
+// ===== FCM PUSH NOTIFICATIONS =====
+let fcmMessaging = null;
+
+async function initFCM() {
+    try {
+        const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+        const firebaseApp = getApp();
+        fcmMessaging = getMessaging(firebaseApp);
+
+        // Handle foreground messages
+        onMessage(fcmMessaging, (payload) => {
+            const title = payload.notification?.title || 'Hall Attendance Update';
+            const body = payload.notification?.body || 'New attendance update';
+            showNotification(`🔔 ${title}: ${body}`, 'info', 8000);
+            
+            // Also show native notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: '/images/hall.png',
+                    tag: 'fcm-notification',
+                    renotify: true
+                });
+            }
+        });
+
+    } catch (error) {
+        console.log('FCM init skipped:', error.message);
+    }
+}
+
+async function requestFCMToken() {
+    if (!fcmMessaging || !db || !userId || userId === 'system') return;
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.log('Notification permission denied');
+            return;
+        }
+
+        const token = await getToken(fcmMessaging, {
+            vapidKey: firebaseConfig.messagingSenderId,
+            serviceWorkerRegistration: await navigator.serviceWorker.getRegistration()
+        });
+
+        if (token) {
+            // Store FCM token in Firebase for this user
+            const tokenRef = ref(db, `fcm_tokens/${userId}`);
+            await set(tokenRef, {
+                token: token,
+                email: userEmail,
+                name: userName,
+                updatedAt: new Date().toISOString(),
+                platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'
+            });
+            console.log('FCM token registered');
+        }
+    } catch (error) {
+        console.log('FCM token error:', error.message);
+    }
+}
 let totalHallUnsubscribe = null;
 function setupTotalHallListener() {
     if (!db) return;
@@ -999,7 +1104,8 @@ function renderRoomCard(roomNumber, currentCount) {
     const docId = `room_${roomNumber}`;
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
-    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && isUserRoom && !isViewOnlyMode && (isWithinHallRadius || !geoLocationChecked);
+    const canEditRoom = isAdmin || isUserRoom;
+    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && canEditRoom && !isViewOnlyMode && (isWithinHallRadius || !geoLocationChecked);
     const displayValue = (currentCount === null || currentCount === undefined) ? '0' : (currentCount === 0 ? '🚫' : String(currentCount));
     if (existingCard) {
         const input = existingCard.querySelector('input');
@@ -1012,9 +1118,9 @@ function renderRoomCard(roomNumber, currentCount) {
             input.disabled = !isEditable;
             input.style.opacity = isEditable ? '1' : '0.5';
             input.style.cursor = isEditable ? 'text' : 'not-allowed';
-            input.title = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+            input.title = isViewOnlyMode ? 'View only mode - login to edit' : (!canEditRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
         }
-        if (!isUserRoom) {
+        if (!canEditRoom) {
             existingCard.classList.add('other-room');
         } else {
             existingCard.classList.remove('other-room');
@@ -1024,14 +1130,18 @@ function renderRoomCard(roomNumber, currentCount) {
     }
     const card = document.createElement('div');
     card.id = docId;
-    const inputTitle = isViewOnlyMode ? 'View only mode - login to edit' : (!isUserRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
-    card.className = `room-card p-5 rounded-2xl ${!isUserRoom ? 'other-room' : ''}`;
+    const inputTitle = isViewOnlyMode ? 'View only mode - login to edit' : (!canEditRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+    card.className = `room-card p-5 rounded-2xl ${!canEditRoom ? 'other-room' : ''}`;
+    const roomLabel = isUserRoom && !isViewOnlyMode 
+        ? '<span class="room-label-badge bg-green-500">My Room</span>' 
+        : (isAdmin && !isViewOnlyMode 
+            ? '<span class="room-label-badge bg-amber-500">Admin</span>'
+            : '');
     card.innerHTML = `
         <div class="flex items-center justify-between mb-1">
-            <div class="text-lg font-bold text-gray-800">Room ${roomNumber}</div>
+            <div class="text-lg font-bold text-gray-800 flex items-center gap-2">Room ${roomNumber} ${roomLabel}</div>
             <div class="room-badge" id="badge-${roomNumber}">-</div>
         </div>
-        ${isUserRoom && !isViewOnlyMode ? '<div class="mb-2"><span class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full">My Room</span></div>' : '<div class="mb-2"></div>'}
         <div class="text-sm text-gray-500 mb-2">Students Present:</div>
         <div class="input-with-controls" style="display:flex;gap:8px;align-items:center;justify-content:center;">
             <input
@@ -1063,7 +1173,7 @@ function renderRoomCard(roomNumber, currentCount) {
             showNotification('🔒 Please login to input attendance', 'warning', 3000);
             return;
         }
-        if (!isUserRoom) {
+        if (!canEditRoom) {
             showNotification('🔒 You can only edit your own room attendance', 'warning', 3000);
             if (inputElement) inputElement.value = displayedCounts[roomNumber] ?? '-';
             return;
@@ -1138,9 +1248,31 @@ function selectFloor(floorNumber) {
     });
     const selectedCard = document.getElementById(`floor-card-${currentFloor}`);
     if (selectedCard) selectedCard.classList.add('floor-selected');
-    if (noFloorMessage) noFloorMessage.classList.add('hidden');
-    if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
-    if (roomContainer) roomContainer.classList.remove('hidden');
+
+    // Animate dashboard out, floor view in
+    if (noFloorMessage && !noFloorMessage.classList.contains('hidden')) {
+        noFloorMessage.classList.add('page-transition-exit');
+        setTimeout(() => {
+            noFloorMessage.classList.add('hidden');
+            noFloorMessage.classList.remove('page-transition-exit');
+
+            if (totalAttendanceCard) {
+                totalAttendanceCard.classList.remove('hidden');
+                totalAttendanceCard.classList.add('page-fade-enter');
+                setTimeout(() => totalAttendanceCard.classList.remove('page-fade-enter'), 350);
+            }
+            if (roomContainer) {
+                roomContainer.classList.remove('hidden');
+                roomContainer.classList.add('page-transition-enter');
+                setTimeout(() => roomContainer.classList.remove('page-transition-enter'), 400);
+            }
+        }, 250);
+    } else {
+        if (noFloorMessage) noFloorMessage.classList.add('hidden');
+        if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
+        if (roomContainer) roomContainer.classList.remove('hidden');
+    }
+
     if (loadingStatus) loadingStatus.classList.remove('hidden');
     if (timeNote) timeNote.classList.remove('hidden');
     if (floorTitle) {
@@ -1152,8 +1284,19 @@ function selectFloor(floorNumber) {
     localStorage.setItem('fas_selected_floor', currentFloor);
     renderInitialRooms();
     setupRealtimeListener(currentViewDate);
+    updateNavbarForFloorView();
+    updateViewingInfo();
     playSound('success');
     showNotification(`Switched to ${floorOrdinal} Floor`, 'info', 2500);
+
+    // Stagger room card animations
+    setTimeout(() => {
+        const cards = document.querySelectorAll('.room-card');
+        cards.forEach((card, index) => {
+            card.classList.add('room-card-animate');
+            card.style.animationDelay = `${index * 40}ms`;
+        });
+    }, 300);
 }
 if (floorSelect) {
     floorSelect.addEventListener('change', (e) => {
@@ -1383,7 +1526,9 @@ function initializeDatePicker() {
         datePicker.addEventListener('change', (event) => {
             const selectedDate = new Date(event.target.value + 'T00:00:00');
             currentViewDate = formatDateKey(selectedDate);
+            localStorage.setItem('fas_selected_date', currentViewDate);
             updateTotalForDate();
+            updateViewingInfo();
             if (currentFloor) {
                 renderInitialRooms();
                 setupRealtimeListener(currentViewDate);
@@ -1395,7 +1540,9 @@ function initializeDatePicker() {
         todayBtn.addEventListener('click', () => {
             setDatePickerToToday();
             currentViewDate = getTodayDateKey();
+            localStorage.setItem('fas_selected_date', currentViewDate);
             updateTotalForDate();
+            updateViewingInfo();
             if (currentFloor) {
                 renderInitialRooms();
                 setupRealtimeListener(currentViewDate);
@@ -1501,6 +1648,7 @@ function getInitials(name) {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 let userRoomNumber = null;
+let isAdmin = false;
 let authModal, authLoginForm, authRegisterForm, authForgotForm;
 let authLoginTabBtn, authRegisterTabBtn, authAlertBox, authForgotPasswordLink, authBackToLoginBtn;
 let authTabContainer;
@@ -1665,8 +1813,10 @@ function updateProfileDisplay(user, userData) {
     if (user && profileSection) {
         const displayName = user.displayName || userData?.fullName || 'User';
         const roomNumber = userData?.roomNumber || '';
+        const adminBadge = isAdmin ? '<span class="profile-admin-badge">ADMIN</span>' : '';
         profileSection.innerHTML = `
             <div class="profile-name-display">
+                ${adminBadge}
                 <span id="profile-name-display">${displayName}</span>
                 <span class="profile-room-badge" id="profile-room-display">${roomNumber ? 'Room ' + roomNumber : ''}</span>
             </div>
@@ -1928,6 +2078,10 @@ async function checkAuth() {
             userName = user.displayName || 'User';
             isLoggedIn = true;
             isViewOnlyMode = false;
+
+            // Show logout button for logged-in users
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (isViewOnlyRequested) {
                 urlParams.delete('viewOnly');
                 const newUrl = urlParams.toString()
@@ -1953,6 +2107,15 @@ async function checkAuth() {
                     if (userData.roomNumber && userData.roomNumber !== 0) {
                         userRoomNumber = userData.roomNumber;
                         localStorage.setItem('userRoom', userData.roomNumber);
+                    }
+                    // Check admin by email
+                    const ADMIN_EMAILS = ['mdmueidshahriar16@gmail.com'];
+                    if (ADMIN_EMAILS.includes(user.email?.toLowerCase())) {
+                        isAdmin = true;
+                        localStorage.setItem('fas_is_admin', 'true');
+                    } else {
+                        isAdmin = false;
+                        localStorage.removeItem('fas_is_admin');
                     }
                     updateProfileDisplay(user, userData);
                 } else {
@@ -1980,18 +2143,167 @@ async function init() {
     await initializeFirebase();
     await checkAuth();
     initializeDatePicker();
-    localStorage.removeItem('fas_selected_floor');
+    initNavbarButtons();
+
+    // Initialize FCM push notifications
+    await initFCM();
+    requestFCMToken();
+
+    // Restore saved floor selection on reload (persist page state)
+    const savedFloor = localStorage.getItem('fas_selected_floor');
+    if (savedFloor) {
+        currentFloor = parseInt(savedFloor);
+        if (floorSelect) floorSelect.value = String(currentFloor);
+        selectFloor(currentFloor);
+        updateNavbarForFloorView();
+    } else {
+        currentFloor = null;
+        if (floorSelect) floorSelect.value = '';
+        ALL_FLOORS.forEach(f => {
+            const fc = document.getElementById(`floor-card-${f}`);
+            if (fc) fc.classList.remove('floor-selected');
+        });
+        if (noFloorMessage) noFloorMessage.classList.remove('hidden');
+        if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');
+        if (roomContainer) roomContainer.classList.add('hidden');
+        if (countdownContainer) countdownContainer.classList.add('hidden');
+        if (timeNote) timeNote.classList.add('hidden');
+        if (dateDisplay) dateDisplay.innerHTML = '';
+        updateNavbarForDashboard();
+    }
+
+    // Restore saved date on reload
+    const savedDate = localStorage.getItem('fas_selected_date');
+    if (savedDate && datePicker) {
+        datePicker.value = savedDate;
+        currentViewDate = savedDate;
+        const todayDateKey = getTodayDateKey();
+        isViewingToday = (savedDate === todayDateKey);
+        updateViewingInfo();
+        updateTotalForDate();
+        if (currentFloor) {
+            renderInitialRooms();
+            setupRealtimeListener(currentViewDate);
+        }
+    }
+}
+
+// ===== NAVBAR FUNCTIONS =====
+function initNavbarButtons() {
+    const backBtn = document.getElementById('back-to-home-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            goBackToHome();
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await signOut(firebaseAuth);
+                    localStorage.removeItem('fas_selected_floor');
+                    localStorage.removeItem('fas_selected_date');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userEmail');
+                    localStorage.removeItem('userName');
+                    localStorage.removeItem('userRoom');
+                    window.location.reload();
+                } catch (error) {
+                    showNotification('Logout failed. Please try again.', 'danger', 3000);
+                }
+            }
+        });
+    }
+}
+
+function goBackToHome() {
     currentFloor = null;
+    displayedCounts = {};
+    localStorage.removeItem('fas_selected_floor');
+
     if (floorSelect) floorSelect.value = '';
     ALL_FLOORS.forEach(f => {
         const fc = document.getElementById(`floor-card-${f}`);
         if (fc) fc.classList.remove('floor-selected');
     });
-    if (noFloorMessage) noFloorMessage.classList.remove('hidden');
-    if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');
-    if (roomContainer) roomContainer.classList.add('hidden');
+
+    // Animate floor view out, dashboard in
+    const animateOut = [];
+    if (totalAttendanceCard && !totalAttendanceCard.classList.contains('hidden')) {
+        totalAttendanceCard.classList.add('page-fade-exit');
+        animateOut.push(totalAttendanceCard);
+    }
+    if (roomContainer && !roomContainer.classList.contains('hidden')) {
+        roomContainer.classList.add('page-transition-exit');
+        animateOut.push(roomContainer);
+    }
+
+    setTimeout(() => {
+        animateOut.forEach(el => {
+            el.classList.add('hidden');
+            el.classList.remove('page-fade-exit', 'page-transition-exit');
+        });
+
+        if (noFloorMessage) {
+            noFloorMessage.classList.remove('hidden');
+            noFloorMessage.classList.add('page-transition-enter');
+            setTimeout(() => noFloorMessage.classList.remove('page-transition-enter'), 400);
+        }
+    }, 250);
+
     if (countdownContainer) countdownContainer.classList.add('hidden');
     if (timeNote) timeNote.classList.add('hidden');
     if (dateDisplay) dateDisplay.innerHTML = '';
+    if (roomSearch) roomSearch.value = '';
+
+    updateNavbarForDashboard();
+    setupTotalHallListener();
+    playSound('click');
 }
+
+function updateNavbarForFloorView() {
+    const backBtn = document.getElementById('back-to-home-btn');
+    const navStatus = document.getElementById('navbar-status');
+
+    if (backBtn) backBtn.classList.remove('hidden');
+    if (navStatus && currentFloor) {
+        navStatus.textContent = `${getOrdinalSuffix(currentFloor)} Floor`;
+    }
+}
+
+function updateNavbarForDashboard() {
+    const backBtn = document.getElementById('back-to-home-btn');
+    const navStatus = document.getElementById('navbar-status');
+
+    if (backBtn) backBtn.classList.add('hidden');
+    if (navStatus) navStatus.textContent = 'Dashboard';
+}
+
+function updateViewingInfo() {
+    const viewingInfo = document.getElementById('viewing-info');
+    const viewingBadge = document.getElementById('viewing-badge');
+    const viewingText = document.getElementById('viewing-text');
+    const todayDateKey = getTodayDateKey();
+    isViewingToday = (currentViewDate === todayDateKey);
+
+    if (viewingInfo) viewingInfo.classList.remove('hidden');
+
+    if (viewingBadge) {
+        if (isViewingToday) {
+            viewingBadge.textContent = '● LIVE';
+            viewingBadge.className = 'viewing-badge viewing-badge-live';
+        } else {
+            viewingBadge.textContent = '● HISTORY';
+            viewingBadge.className = 'viewing-badge viewing-badge-history';
+        }
+    }
+
+    if (viewingText) {
+        viewingText.textContent = formatDisplayDate(currentViewDate);
+    }
+}
+
 init();

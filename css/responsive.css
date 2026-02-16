@@ -128,6 +128,13 @@
     .room-search-input {
         max-width: 200px;
     }
+    .filter-btn {
+        padding: 4px 10px;
+        font-size: 0.72rem;
+    }
+    .room-filter-buttons {
+        gap: 4px;
+    }
     .color-picker-wrapper,
     #sound-toggle,
     #theme-toggle {
@@ -236,5 +243,70 @@
     }
     #total-count-display {
         font-size: 2.6rem;
+    }
+}
+
+/* ===== NAVBAR RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .navbar-inner {
+        padding: 10px 14px;
+        gap: 6px;
+    }
+    .navbar-title {
+        font-size: 1rem;
+    }
+    .navbar-btn {
+        padding: 7px 12px;
+        font-size: 0.8rem;
+    }
+    .toolbar-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .toolbar-divider {
+        display: none;
+    }
+    .toolbar-section {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-inner {
+        padding: 8px 12px;
+        gap: 5px;
+    }
+    .navbar-title {
+        font-size: 0.9rem;
+    }
+    .navbar-subtitle {
+        font-size: 0.65rem;
+    }
+    .navbar-logo {
+        width: 32px;
+        height: 32px;
+    }
+    .navbar-btn {
+        padding: 6px 10px;
+        font-size: 0.78rem;
+    }
+    .navbar-btn-icon {
+        font-size: 1rem;
+    }
+    .profile-name-display {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    .toolbar-container {
+        padding: 12px 12px 0;
+    }
+    .toolbar-card {
+        padding: 12px 14px;
+    }
+    .toolbar-date-group {
+        flex-direction: column;
+    }
+    .toolbar-today-btn {
+        width: 100%;
     }
 }
