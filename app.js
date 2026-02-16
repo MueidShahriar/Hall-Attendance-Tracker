@@ -206,81 +206,15 @@ function sendBrowserNotification(title, body, icon = '📋') {
         });
     }
 }
-const countdownContainer = document.getElementById('countdown-container');
+const countdownContainer = document.getElementById('navbar-countdown');
 const countdownTimer = document.getElementById('countdown-timer');
 const countdownStatus = document.getElementById('countdown-status');
-function initDraggableCountdown() {
-    if (!countdownContainer) return;
-    let isDragging = false;
-    let startX, startY, initialX, initialY;
-    const savedPos = localStorage.getItem('countdown_position');
-    if (savedPos) {
-        try {
-            const pos = JSON.parse(savedPos);
-            countdownContainer.style.top = pos.top;
-            countdownContainer.style.right = 'auto';
-            countdownContainer.style.left = pos.left;
-        } catch (e) {}
-    }
-    function onStart(e) {
-        isDragging = true;
-        countdownContainer.classList.add('dragging');
-        if (e.type === 'touchstart') {
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-        } else {
-            startX = e.clientX;
-            startY = e.clientY;
-        }
-        const rect = countdownContainer.getBoundingClientRect();
-        initialX = rect.left;
-        initialY = rect.top;
-        e.preventDefault();
-    }
-    function onMove(e) {
-        if (!isDragging) return;
-        let clientX, clientY;
-        if (e.type === 'touchmove') {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-        const deltaX = clientX - startX;
-        const deltaY = clientY - startY;
-        let newLeft = initialX + deltaX;
-        let newTop = initialY + deltaY;
-        const rect = countdownContainer.getBoundingClientRect();
-        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rect.width));
-        newTop = Math.max(0, Math.min(newTop, window.innerHeight - rect.height));
-        countdownContainer.style.left = newLeft + 'px';
-        countdownContainer.style.top = newTop + 'px';
-        countdownContainer.style.right = 'auto';
-    }
-    function onEnd() {
-        if (!isDragging) return;
-        isDragging = false;
-        countdownContainer.classList.remove('dragging');
-        localStorage.setItem('countdown_position', JSON.stringify({
-            top: countdownContainer.style.top,
-            left: countdownContainer.style.left
-        }));
-    }
-    countdownContainer.addEventListener('mousedown', onStart);
-    countdownContainer.addEventListener('touchstart', onStart, { passive: false });
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('mouseup', onEnd);
-    document.addEventListener('touchend', onEnd);
-}
+
+// Draggable countdown no longer needed - timer is in navbar now
+function initDraggableCountdown() {}
 initDraggableCountdown();
 function updateCountdown() {
     if (!countdownContainer || !countdownTimer || !countdownStatus) return;
-    if (!currentFloor) {
-        countdownContainer.classList.add('hidden');
-        return;
-    }
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
     if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES) {
@@ -290,12 +224,12 @@ function updateCountdown() {
         const secs = 59 - now.getSeconds();
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        countdownStatus.textContent = 'remaining to submit';
-        countdownTimer.classList.remove('text-red-600');
-        countdownTimer.classList.add('text-indigo-600');
+        countdownStatus.textContent = 'remaining';
+        countdownContainer.classList.remove('countdown-urgent', 'countdown-waiting');
+        countdownContainer.classList.add('countdown-active');
         if (remainingMinutes <= 15) {
-            countdownTimer.classList.remove('text-indigo-600');
-            countdownTimer.classList.add('text-red-600');
+            countdownContainer.classList.remove('countdown-active');
+            countdownContainer.classList.add('countdown-urgent');
         }
     } else if (minutes < ALLOWED_START_MINUTES) {
         const untilStartMinutes = ALLOWED_START_MINUTES - minutes;
@@ -304,15 +238,15 @@ function updateCountdown() {
         const secs = 59 - now.getSeconds();
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        countdownStatus.textContent = 'until window opens';
-        countdownTimer.classList.remove('text-red-600');
-        countdownTimer.classList.add('text-gray-600');
+        countdownStatus.textContent = 'until open';
+        countdownContainer.classList.remove('countdown-active', 'countdown-urgent');
+        countdownContainer.classList.add('countdown-waiting');
     } else {
         countdownContainer.classList.remove('hidden');
         countdownTimer.textContent = '00:00:00';
-        countdownStatus.textContent = 'window closed';
-        countdownTimer.classList.remove('text-indigo-600');
-        countdownTimer.classList.add('text-red-600');
+        countdownStatus.textContent = 'closed';
+        countdownContainer.classList.remove('countdown-active', 'countdown-waiting');
+        countdownContainer.classList.add('countdown-urgent');
     }
 }
 const roomSearch = document.getElementById('room-search');
@@ -1105,7 +1039,7 @@ function renderRoomCard(roomNumber, currentCount) {
     const existingCard = document.getElementById(docId);
     const isUserRoom = userRoomNumber === roomNumber;
     const canEditRoom = isAdmin || isUserRoom;
-    const isEditable = isViewingToday && isWithinAllowedTime() && isLoggedIn && canEditRoom && !isViewOnlyMode && (isWithinHallRadius || !geoLocationChecked);
+    const isEditable = isViewingToday && (isAdmin || isWithinAllowedTime()) && isLoggedIn && canEditRoom && !isViewOnlyMode && (isAdmin || isWithinHallRadius || !geoLocationChecked);
     const displayValue = (currentCount === null || currentCount === undefined) ? '0' : (currentCount === 0 ? '🚫' : String(currentCount));
     if (existingCard) {
         const input = existingCard.querySelector('input');
@@ -1462,11 +1396,11 @@ async function updateAttendance(roomNumber, value) {
         showNotification('🔒 Please login with Google to input attendance', 'warning', 3000);
         return;
     }
-    if (geoLocationChecked && !isWithinHallRadius) {
+    if (!isAdmin && geoLocationChecked && !isWithinHallRadius) {
         showGeoToast("You're out of Hall", 'error');
         return;
     }
-    if (!isWithinAllowedTime()) {
+    if (!isAdmin && !isWithinAllowedTime()) {
         displayError('Attendance can only be updated between 06:30 PM to 9:30 AM.');
         return;
     }

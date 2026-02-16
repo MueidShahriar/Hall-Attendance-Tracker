@@ -140,6 +140,17 @@
     #theme-toggle {
         display: inline-flex !important;
     }
+    .navbar-countdown {
+        padding: 3px 8px;
+        gap: 4px;
+    }
+    .navbar-countdown-time {
+        font-size: 10px;
+        letter-spacing: 0.5px;
+    }
+    .navbar-countdown-label {
+        font-size: 8px;
+    }
     .mobile-controls {
         display: none !important;
     }

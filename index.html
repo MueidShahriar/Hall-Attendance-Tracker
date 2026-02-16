@@ -123,10 +123,6 @@
         <div id="geo-toast-container" class="geo-toast-container"></div>
         <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4">
         </div>
-        <div id="countdown-container" class="countdown-fixed hidden">
-            <div id="countdown-timer" class="countdown-timer text-xl font-bold">--:--:--</div>
-            <div id="countdown-status" class="countdown-status text-xs">remaining</div>
-        </div>
 
         <!-- ===== PROFESSIONAL NAVBAR ===== -->
         <nav class="app-navbar">
@@ -169,6 +165,15 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                         <span>Home</span>
                     </button>
+                    <button id="install-app-btn" class="navbar-btn navbar-btn-install hidden" title="Install App">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Install App</span>
+                    </button>
+                    <div id="navbar-countdown" class="navbar-countdown hidden">
+                        <span class="navbar-countdown-icon">⏱</span>
+                        <div id="countdown-timer" class="navbar-countdown-time">--:--:--</div>
+                        <div id="countdown-status" class="navbar-countdown-label">remaining</div>
+                    </div>
                     <button id="logout-btn" class="navbar-btn navbar-btn-logout hidden" title="Logout">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         <span>Logout</span>
@@ -397,6 +402,32 @@
     </script>
     <script type="module" src="app.js"></script>
     <script>
+    // PWA Install Prompt Handler
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        const installBtn = document.getElementById('install-app-btn');
+        if (installBtn) installBtn.classList.remove('hidden');
+    });
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        const installBtn = document.getElementById('install-app-btn');
+        if (installBtn) installBtn.classList.add('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#install-app-btn') && deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then((choice) => {
+                if (choice.outcome === 'accepted') {
+                    const installBtn = document.getElementById('install-app-btn');
+                    if (installBtn) installBtn.classList.add('hidden');
+                }
+                deferredInstallPrompt = null;
+            });
+        }
+    });
+
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
