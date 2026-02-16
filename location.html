@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Location Debug - Hall Attendance</title>
+    <title>Location Debug - Hall Attendance Tracker</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; min-height: 100vh; padding: 20px; }
@@ -83,7 +83,6 @@
     </div>
 
     <script>
-        // These must match what's in app.js
         const HALL_LATITUDE = 24.289462;
         const HALL_LONGITUDE = 89.008797;
         const ALLOWED_RADIUS = 100;
@@ -138,13 +137,11 @@
                         document.getElementById('distance-label').textContent = `${Math.round(dist - ALLOWED_RADIUS)}m outside the allowed radius`;
                     }
 
-                    // Show map link
                     const mapLink = document.getElementById('map-link');
                     const mapAnchor = document.getElementById('map-anchor');
                     mapLink.style.display = 'block';
                     mapAnchor.href = `https://www.google.com/maps?q=${lat},${lng}`;
 
-                    // Show copy button
                     document.getElementById('copy-btn').style.display = 'block';
                     document.getElementById('copy-btn').dataset.lat = lat.toFixed(6);
                     document.getElementById('copy-btn').dataset.lng = lng.toFixed(6);
@@ -172,7 +169,6 @@
             });
         }
 
-        // Auto-run on page load
         getLocation();
     </script>
 </body>

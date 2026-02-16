@@ -257,7 +257,6 @@
     }
 }
 
-/* ===== NAVBAR RESPONSIVE ===== */
 @media (max-width: 768px) {
     .navbar-inner {
         padding: 10px 14px;

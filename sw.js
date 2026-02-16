@@ -1,4 +1,3 @@
-// Service Worker for Hall Attendance Tracker PWA
 const CACHE_NAME = 'hall-tracker-v1';
 const STATIC_ASSETS = [
     '/',
@@ -17,7 +16,6 @@ const STATIC_ASSETS = [
     '/manifest.json'
 ];
 
-// Install - cache static assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -27,7 +25,6 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Activate - clean old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -41,12 +38,10 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch - network first, fallback to cache for app shell
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Skip Firebase and external API requests - always go to network
     if (
         url.hostname.includes('firebaseio.com') ||
         url.hostname.includes('googleapis.com') ||
@@ -60,7 +55,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // For navigation requests - network first, cache fallback
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
@@ -76,11 +70,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // For static assets - cache first, network fallback
     event.respondWith(
         caches.match(request).then((cachedResponse) => {
             if (cachedResponse) {
-                // Update cache in background
                 fetch(request).then((networkResponse) => {
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(request, networkResponse);
@@ -99,9 +91,8 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Handle push notifications from FCM
 self.addEventListener('push', (event) => {
-    let data = { title: 'Hall Attendance', body: 'New notification' };
+    let data = { title: 'Hall Attendance Tracker', body: 'New notification' };
     if (event.data) {
         try {
             data = event.data.json();
@@ -128,7 +119,6 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// Handle notification click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     if (event.action === 'close') return;

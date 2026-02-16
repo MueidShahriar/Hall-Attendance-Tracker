@@ -124,10 +124,8 @@
         <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4">
         </div>
 
-        <!-- ===== PROFESSIONAL NAVBAR ===== -->
         <nav class="app-navbar">
             <div class="navbar-inner">
-                <!-- Row 1: Brand + Quick Icons -->
                 <div class="navbar-row-top">
                     <div class="navbar-brand">
                         <img src="images/hall.png" alt="Hall Logo" class="navbar-logo">
@@ -150,7 +148,6 @@
                         <button id="sound-toggle" class="navbar-btn navbar-btn-icon" title="Toggle Sound">🔊</button>
                     </div>
                 </div>
-                <!-- Row 2: Profile Info -->
                 <div class="navbar-row-profile">
                     <div id="user-profile-section" class="user-profile-section">
                         <div class="profile-name-display">
@@ -159,7 +156,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- Row 3: Action Buttons -->
                 <div class="navbar-row-actions">
                     <button id="back-to-home-btn" class="navbar-btn navbar-btn-home hidden" title="Back to Dashboard">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -183,13 +179,11 @@
         </nav>
 
         <div class="app-content">
-        <!-- Geo-Location Status Banner -->
         <div id="geo-location-banner" class="geo-location-banner hidden">
             <span id="geo-location-icon" class="geo-location-icon">📡</span>
             <span id="geo-location-text" class="geo-location-text">Checking location...</span>
         </div>
 
-        <!-- ===== DATE PICKER & FLOOR SELECTOR TOOLBAR ===== -->
         <div class="toolbar-container">
             <div class="toolbar-card">
                 <div class="toolbar-row">
@@ -332,7 +326,7 @@
             <p class="font-bold">Error:</p>
             <p id="error-text" class="text-sm"></p>
         </div>
-    </div><!-- end .app-content -->
+    </div>
     <div id="activity-log-modal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
             <div class="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -402,7 +396,6 @@
     </script>
     <script type="module" src="app.js"></script>
     <script>
-    // PWA Install Prompt Handler
     let deferredInstallPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -428,7 +421,6 @@
         }
     });
 
-    // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js')
@@ -441,7 +433,7 @@
         });
     }
     </script>
-    </div><!-- end #app -->
+    </div>
     <footer class="app-footer-bar">
          <p> &copy; 2026 Hall Attendance Tracker. All rights reserved.</p>
         <p>Developed and maintained by <b style="color: #4c52f4;"> Md. Mueid Shahriar</b></p>

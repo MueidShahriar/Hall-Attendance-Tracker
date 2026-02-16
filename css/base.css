@@ -79,7 +79,6 @@ body {
     100% { transform: scale(1); }
 }
 
-/* ===== PAGE TRANSITIONS ===== */
 @keyframes pageSlideIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -109,7 +108,6 @@ body {
     animation: pageFadeOut 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Staggered room card entrance */
 @keyframes roomCardEnter {
     from { opacity: 0; transform: translateY(16px) scale(0.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
@@ -119,7 +117,6 @@ body {
     opacity: 0;
 }
 
-/* Floor card hover lift */
 @keyframes floorCardPulse {
     0%, 100% { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
     50% { box-shadow: 0 8px 28px rgba(0,0,0,0.12); }

@@ -5,7 +5,6 @@
     gap: 12px;
 }
 
-/* ===== PROFESSIONAL NAVBAR ===== */
 .app-navbar {
     background: white;
     border-bottom: 1px solid #e5e7eb;
@@ -35,7 +34,6 @@
     gap: 6px;
 }
 
-/* Navbar Countdown Timer */
 .navbar-countdown {
     display: flex;
     align-items: center;
@@ -76,7 +74,6 @@
     line-height: 1;
 }
 
-/* Countdown state variants */
 .navbar-countdown.countdown-active {
     background: linear-gradient(135deg, #1e3a8a, #3b82f6);
 }
@@ -205,7 +202,6 @@
     display: none;
 }
 
-/* ===== TOOLBAR (DATE + FLOOR) ===== */
 .toolbar-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -342,7 +338,6 @@
     font-weight: 500;
 }
 
-/* ===== APP CONTENT ===== */
 .app-content {
     max-width: 1200px;
     margin: 0 auto;
@@ -350,12 +345,10 @@
     padding-bottom: 24px;
 }
 
-/* Gap between toolbar and dashboard content */
 .toolbar-container {
     margin-bottom: 20px;
 }
 
-/* Gap between total hall card and floor cards grid */
 #total-hall-card {
     margin-bottom: 24px !important;
 }
@@ -364,7 +357,6 @@
     gap: 14px !important;
 }
 
-/* ===== PROFESSIONAL FOOTER ===== */
 .app-footer-bar {
     width: 100%;
     padding: 24px 20px;
@@ -456,7 +448,6 @@
     display: inline-block;
 }
 
-/* ===== ROOM FILTER BUTTONS ===== */
 .room-search-filter-bar {
     display: flex;
     flex-direction: column;

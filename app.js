@@ -48,8 +48,6 @@ const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
 const ALLOWED_END_MINUTES = (22 * 60);
 
-// ===== GEO-LOCATION CONFIGURATION =====
-// Boral Hall, BAUET, Qadirabad Cantonment, Natore (Plus Code: 72Q5+QGM)
 const HALL_LATITUDE = 24.289462;
 const HALL_LONGITUDE = 89.008797;
 const ALLOWED_RADIUS_METERS = 100;
@@ -210,7 +208,6 @@ const countdownContainer = document.getElementById('navbar-countdown');
 const countdownTimer = document.getElementById('countdown-timer');
 const countdownStatus = document.getElementById('countdown-status');
 
-// Draggable countdown no longer needed - timer is in navbar now
 function initDraggableCountdown() {}
 initDraggableCountdown();
 function updateCountdown() {
@@ -264,12 +261,10 @@ function filterRooms(searchTerm, statusFilter = null) {
         let matchesSearch = true;
         let matchesFilter = true;
 
-        // Search filter
         if (term !== '' && !String(room).includes(term)) {
             matchesSearch = false;
         }
 
-        // Status filter
         if (filter !== 'all') {
             const count = displayedCounts[room];
             switch (filter) {
@@ -318,7 +313,6 @@ if (clearSearchBtn) {
     });
 }
 
-// Room filter buttons
 document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         playSound('click');
@@ -483,9 +477,8 @@ async function cleanupOldData() {
     } catch (error) {
     }
 }
-// ===== GEO-LOCATION: Haversine Distance Calculation =====
 function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const toRad = (deg) => (deg * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -494,7 +487,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // distance in meters
+    return R * c;
 }
 
 function updateLocationBanner(status, message) {
@@ -570,7 +563,6 @@ function checkGeoLocation() {
                 showGeoToast("You're out of Hall", 'error');
                 applyLocationGating();
             }
-            // Start watching position for real-time updates
             startGeoWatch();
         },
         (error) => {
@@ -613,7 +605,6 @@ function startGeoWatch() {
                 updateLocationBanner('inside', `You're inside the hall area (${Math.round(distance)}m away)`);
                 if (!wasInside) {
                     showGeoToast('You entered the hall area. Attendance enabled!', 'success');
-                    // Re-render rooms to enable inputs
                     if (currentFloor) {
                         ROOMS.forEach(room => {
                             const count = displayedCounts[room] ?? 0;
@@ -893,7 +884,6 @@ async function initializeFirebase() {
     }
 }
 
-// ===== FCM PUSH NOTIFICATIONS =====
 let fcmMessaging = null;
 
 async function initFCM() {
@@ -902,13 +892,11 @@ async function initFCM() {
         const firebaseApp = getApp();
         fcmMessaging = getMessaging(firebaseApp);
 
-        // Handle foreground messages
         onMessage(fcmMessaging, (payload) => {
             const title = payload.notification?.title || 'Hall Attendance Update';
             const body = payload.notification?.body || 'New attendance update';
             showNotification(`🔔 ${title}: ${body}`, 'info', 8000);
             
-            // Also show native notification if permitted
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(title, {
                     body: body,
@@ -939,7 +927,6 @@ async function requestFCMToken() {
         });
 
         if (token) {
-            // Store FCM token in Firebase for this user
             const tokenRef = ref(db, `fcm_tokens/${userId}`);
             await set(tokenRef, {
                 token: token,
@@ -1183,7 +1170,6 @@ function selectFloor(floorNumber) {
     const selectedCard = document.getElementById(`floor-card-${currentFloor}`);
     if (selectedCard) selectedCard.classList.add('floor-selected');
 
-    // Animate dashboard out, floor view in
     if (noFloorMessage && !noFloorMessage.classList.contains('hidden')) {
         noFloorMessage.classList.add('page-transition-exit');
         setTimeout(() => {
@@ -1223,7 +1209,6 @@ function selectFloor(floorNumber) {
     playSound('success');
     showNotification(`Switched to ${floorOrdinal} Floor`, 'info', 2500);
 
-    // Stagger room card animations
     setTimeout(() => {
         const cards = document.querySelectorAll('.room-card');
         cards.forEach((card, index) => {
@@ -2013,7 +1998,6 @@ async function checkAuth() {
             isLoggedIn = true;
             isViewOnlyMode = false;
 
-            // Show logout button for logged-in users
             const logoutBtn = document.getElementById('logout-btn');
             if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (isViewOnlyRequested) {
@@ -2026,7 +2010,6 @@ async function checkAuth() {
             localStorage.setItem('userId', user.uid);
             localStorage.setItem('userEmail', user.email);
             localStorage.setItem('userName', userName);
-            // Trigger geo-location check immediately after login
             checkGeoLocation();
             try {
                 const userRef = ref(db, `users/${user.uid}`);
@@ -2042,7 +2025,6 @@ async function checkAuth() {
                         userRoomNumber = userData.roomNumber;
                         localStorage.setItem('userRoom', userData.roomNumber);
                     }
-                    // Check admin by email
                     const ADMIN_EMAILS = ['mdmueidshahriar16@gmail.com'];
                     if (ADMIN_EMAILS.includes(user.email?.toLowerCase())) {
                         isAdmin = true;
@@ -2079,11 +2061,9 @@ async function init() {
     initializeDatePicker();
     initNavbarButtons();
 
-    // Initialize FCM push notifications
     await initFCM();
     requestFCMToken();
 
-    // Restore saved floor selection on reload (persist page state)
     const savedFloor = localStorage.getItem('fas_selected_floor');
     if (savedFloor) {
         currentFloor = parseInt(savedFloor);
@@ -2106,7 +2086,6 @@ async function init() {
         updateNavbarForDashboard();
     }
 
-    // Restore saved date on reload
     const savedDate = localStorage.getItem('fas_selected_date');
     if (savedDate && datePicker) {
         datePicker.value = savedDate;
@@ -2122,7 +2101,6 @@ async function init() {
     }
 }
 
-// ===== NAVBAR FUNCTIONS =====
 function initNavbarButtons() {
     const backBtn = document.getElementById('back-to-home-btn');
     const logoutBtn = document.getElementById('logout-btn');
@@ -2164,7 +2142,6 @@ function goBackToHome() {
         if (fc) fc.classList.remove('floor-selected');
     });
 
-    // Animate floor view out, dashboard in
     const animateOut = [];
     if (totalAttendanceCard && !totalAttendanceCard.classList.contains('hidden')) {
         totalAttendanceCard.classList.add('page-fade-exit');

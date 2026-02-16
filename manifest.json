@@ -1,6 +1,6 @@
 {
     "name": "Hall Attendance Tracker",
-    "short_name": "Hall Tracker",
+    "short_name": "Hall Attendance Tracker",
     "description": "Track hall attendance across all floors in real-time",
     "start_url": "/index.html",
     "display": "standalone",

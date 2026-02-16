@@ -85,7 +85,6 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Inline room label badge (My Room / Admin) */
 .room-label-badge {
     font-size: 8px;
     color: white;
@@ -152,7 +151,6 @@
     border-color: #3b82f6;
 }
 
-/* Alternating floor card colors */
 .floor-card:nth-child(1) {
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
     border-color: #93c5fd;
@@ -353,9 +351,7 @@
     text-transform: uppercase;
     animation: pulse 2s infinite;
 }
-/* Floor select is now in toolbar */
 
-/* ===== GEO-LOCATION BANNER ===== */
 .geo-location-banner {
     display: flex;
     align-items: center;
@@ -401,7 +397,6 @@
     flex: 1;
 }
 
-/* ===== GEO TOAST ===== */
 .geo-toast-container {
     position: fixed;
     top: 16px;
@@ -475,7 +470,6 @@
     }
 }
 
-/* Geo-disabled room card styling */
 .room-card.geo-disabled {
     opacity: 0.5;
     pointer-events: none;
