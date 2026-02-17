@@ -36,6 +36,10 @@
     .room-card .text-lg {
         font-size: 0.95rem;
     }
+    .room-label-badge {
+        font-size: 5px;
+        padding: 1.5px 5px;
+    }
     .room-card .text-sm {
         font-size: 0.7rem;
         margin-bottom: 2px !important;

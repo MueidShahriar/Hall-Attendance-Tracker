@@ -537,6 +537,21 @@ function applyLocationGating() {
     }
 }
 
+function requestLocationPermissionEarly() {
+    if (!navigator.geolocation) return;
+    if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(result => {
+            if (result.state === 'prompt') {
+                navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            }
+        }).catch(() => {
+            navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        });
+    } else {
+        navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+}
+
 function checkGeoLocation() {
     if (!navigator.geolocation) {
         geoLocationChecked = true;
@@ -2054,6 +2069,7 @@ async function init() {
     updateCountdown();
     setInterval(updateCountdown, 1000);
     requestNotificationPermission();
+    requestLocationPermissionEarly();
     checkInputWindowAndNotify();
     setInterval(checkInputWindowAndNotify, 60000);
     setTimeout(() => {
