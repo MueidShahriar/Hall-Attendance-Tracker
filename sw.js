@@ -2,6 +2,7 @@ const CACHE_NAME = 'hall-tracker-v1';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
+    '/floor.html',
     '/auth.html',
     '/styles.css',
     '/app.js',
@@ -104,8 +105,11 @@ self.addEventListener('push', (event) => {
         body: data.body || data.notification?.body || 'New update',
         icon: '/images/hall.png',
         badge: '/images/hall.png',
-        vibrate: [100, 50, 100],
-        data: { url: data.click_action || '/' },
+        vibrate: [200, 100, 200, 100, 200],
+        tag: 'hall-attendance-notification',
+        renotify: true,
+        requireInteraction: true,
+        data: { url: data.click_action || '/index.html' },
         actions: [
             { action: 'open', title: 'Open App' },
             { action: 'close', title: 'Dismiss' }
@@ -122,15 +126,16 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     if (event.action === 'close') return;
+    const targetUrl = event.notification.data?.url || '/index.html';
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
-                if (client.url.includes('/index.html') && 'focus' in client) {
+                if ((client.url.includes('index.html') || client.url.includes('floor.html')) && 'focus' in client) {
                     return client.focus();
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow(event.notification.data?.url || '/');
+                return clients.openWindow(targetUrl);
             }
         })
     );

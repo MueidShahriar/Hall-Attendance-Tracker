@@ -194,11 +194,44 @@ async function requestNotificationPermission() {
         notificationPermission = Notification.permission;
     }
 }
-function sendBrowserNotification(title, body, icon = '📋') {
-    if ('Notification' in window && Notification.permission === 'granted') {
+function sendBrowserNotification(title, body) {
+    if ('Notification' in window && Notification.permission !== 'granted') return;
+    
+    // Use Service Worker notification for mobile notification bar support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) {
+                reg.showNotification(title, {
+                    body: body,
+                    icon: '/images/hall.png',
+                    badge: '/images/hall.png',
+                    tag: 'fas-notification',
+                    renotify: true,
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
+                    data: { url: '/index.html' }
+                });
+            } else {
+                // Fallback to basic Notification
+                new Notification(title, {
+                    body: body,
+                    icon: '/images/hall.png',
+                    tag: 'fas-notification',
+                    renotify: true
+                });
+            }
+        }).catch(() => {
+            new Notification(title, {
+                body: body,
+                icon: '/images/hall.png',
+                tag: 'fas-notification',
+                renotify: true
+            });
+        });
+    } else {
         new Notification(title, {
             body: body,
-            icon: '📋',
+            icon: '/images/hall.png',
             tag: 'fas-notification',
             renotify: true
         });
@@ -405,13 +438,7 @@ function formatDateKey(date) {
 }
 function formatDisplayDate(dateKey) {
     const [year, month, day] = dateKey.split('-');
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+    return `${day}/${month}/${year}`;
 }
 const DATA_RETENTION_DAYS = 20;
 async function cleanupOldData() {
@@ -841,24 +868,28 @@ function showNotification(message, type = 'info', duration = 5000) {
     }
 }
 function checkInputWindowAndNotify() {
-    if (!isViewingToday) return;
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-    if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_START_MINUTES + 5 && !sentNotifications.reminder1) {
-        showNotification(`🔔 Reminder for ${userId}: Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`, 'info', 10000);
-        sendBrowserNotification('🔔 Attendance Window Open', `Attendance input window is now OPEN! Please update room attendance until 10:00 PM.`);
+    
+    // 6:30 PM — attendance window opens
+    if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_START_MINUTES + 2 && !sentNotifications.reminder1) {
+        showNotification(`🔔 Attendance window is now OPEN! Please update room attendance until 10:00 PM.`, 'info', 15000);
+        sendBrowserNotification('🔔 Attendance Window Open', 'Attendance input window is now OPEN! Please update your room attendance before 10:00 PM.');
         sentNotifications.reminder1 = true;
     }
-    else if (minutes >= SECOND_REMINDER_MINUTES && minutes < SECOND_REMINDER_MINUTES + 5 && !sentNotifications.reminder2) {
-        showNotification(`⏰ Second Reminder for ${userId}: Only 1 hour left! Attendance window closes at 10:00 PM.`, 'warning', 10000);
-        sendBrowserNotification('⏰ 1 Hour Left!', `Only 1 hour left! Attendance window closes at 10:00 PM.`);
+    // 9:00 PM — 1 hour left
+    else if (minutes >= SECOND_REMINDER_MINUTES && minutes < SECOND_REMINDER_MINUTES + 2 && !sentNotifications.reminder2) {
+        showNotification(`⏰ Only 1 hour left! Attendance window closes at 10:00 PM.`, 'warning', 15000);
+        sendBrowserNotification('⏰ 1 Hour Left!', 'Only 1 hour left to submit attendance! Window closes at 10:00 PM.');
         sentNotifications.reminder2 = true;
     }
-    else if (minutes >= FINAL_REMINDER_MINUTES && minutes < FINAL_REMINDER_MINUTES + 5 && !sentNotifications.reminder3) {
-        showNotification(`🚨 FINAL Reminder for ${userId}: Only 15 minutes left to submit attendance! Window closes at 10:00 PM.`, 'danger', 12000);
-        sendBrowserNotification('🚨 FINAL Reminder!', `Only 15 minutes left to submit attendance! Window closes at 10:00 PM.`);
+    // 9:45 PM — 15 minutes left
+    else if (minutes >= FINAL_REMINDER_MINUTES && minutes < FINAL_REMINDER_MINUTES + 2 && !sentNotifications.reminder3) {
+        showNotification(`🚨 FINAL: Only 15 minutes left to submit attendance!`, 'danger', 15000);
+        sendBrowserNotification('🚨 FINAL Reminder!', 'Only 15 minutes left! Submit your attendance NOW before 10:00 PM.');
         sentNotifications.reminder3 = true;
     }
+    // Reset flags outside the window
     if (minutes < ALLOWED_START_MINUTES || minutes >= ALLOWED_END_MINUTES) {
         sentNotifications = {
             reminder1: false,
@@ -867,15 +898,17 @@ function checkInputWindowAndNotify() {
         };
     }
 }
-function hidePageLoader() {
+function hidePreloader() {
     const loader = document.getElementById('page-loader');
-    if (loader && !loader.classList.contains('hidden')) {
+    const appEl = document.getElementById('app');
+    if (loader) {
+        loader.classList.add('loaded');
         setTimeout(() => {
-            loader.classList.add('hidden');
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 200);
-        }, 100);
+            loader.style.display = 'none';
+        }, 500);
+    }
+    if (appEl) {
+        appEl.style.opacity = '1';
     }
 }
 async function initializeFirebase() {
@@ -892,13 +925,12 @@ async function initializeFirebase() {
         if (loadingStatus) loadingStatus.textContent = 'Connected. Setting up real-time listener...';
         setupRealtimeListener();
         checkAndRunDailyReset();
-        hidePageLoader();
         cleanupOldData();
         cleanupUnverifiedUsers();
         setupTotalHallListener();
     } catch (error) {
         displayError(`Firebase Initialization failed: ${error.message}`);
-        hidePageLoader();
+        hidePreloader();
     }
 }
 
@@ -1220,6 +1252,15 @@ function selectFloor(floorNumber) {
         roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance Inputs`;
     }
     localStorage.setItem('fas_selected_floor', currentFloor);
+
+    // Check if we're on the floor page
+    const isOnFloorPage = window.location.pathname.includes('floor.html');
+    if (!isOnFloorPage) {
+        // On home page, navigate to floor page
+        window.location.href = `floor.html?floor=${currentFloor}`;
+        return;
+    }
+
     renderInitialRooms();
     setupRealtimeListener(currentViewDate);
     updateNavbarForFloorView();
@@ -1244,8 +1285,7 @@ ALL_FLOORS.forEach(floor => {
     const card = document.getElementById(`floor-card-${floor}`);
     if (card) {
         card.addEventListener('click', () => {
-            if (floorSelect) floorSelect.value = String(floor);
-            selectFloor(floor);
+            window.location.href = `floor.html?floor=${floor}`;
         });
     }
 });
@@ -2073,8 +2113,8 @@ async function init() {
     checkInputWindowAndNotify();
     setInterval(checkInputWindowAndNotify, 60000);
     setTimeout(() => {
-        hidePageLoader();
-    }, 8000);
+        hidePreloader();
+    }, 10000);
     await initializeFirebase();
     await checkAuth();
     initializeDatePicker();
@@ -2083,13 +2123,47 @@ async function init() {
     await initFCM();
     requestFCMToken();
 
-    const savedFloor = localStorage.getItem('fas_selected_floor');
-    if (savedFloor) {
-        currentFloor = parseInt(savedFloor);
-        if (floorSelect) floorSelect.value = String(currentFloor);
-        selectFloor(currentFloor);
-        updateNavbarForFloorView();
+    // Detect page type: floor page or home/dashboard
+    const urlParams = new URLSearchParams(window.location.search);
+    const floorParam = urlParams.get('floor');
+    const isFloorPage = window.location.pathname.includes('floor.html');
+
+    if (isFloorPage && floorParam) {
+        // Floor detail page: auto-select floor from URL
+        const floor = parseInt(floorParam);
+        if (floor >= 1 && floor <= 6) {
+            currentFloor = floor;
+            ROOMS = getRoomsForFloor(currentFloor);
+            displayedCounts = {};
+            const floorOrdinal = getOrdinalSuffix(currentFloor);
+
+            if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
+            if (roomContainer) roomContainer.classList.remove('hidden');
+            if (loadingStatus) loadingStatus.classList.remove('hidden');
+            if (timeNote) timeNote.classList.remove('hidden');
+            if (floorTitle) floorTitle.textContent = `Total Students Present on ${floorOrdinal} Floor`;
+            if (roomSectionTitle) roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance`;
+
+            const navStatus = document.getElementById('navbar-status');
+            if (navStatus) navStatus.textContent = `${floorOrdinal} Floor`;
+
+            renderInitialRooms();
+            setupRealtimeListener(currentViewDate);
+            updateViewingInfo();
+
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.room-card');
+                cards.forEach((card, index) => {
+                    card.classList.add('room-card-animate');
+                    card.style.animationDelay = `${index * 40}ms`;
+                });
+            }, 200);
+        } else {
+            window.location.href = 'index.html';
+            return;
+        }
     } else {
+        // Home/Dashboard page
         currentFloor = null;
         if (floorSelect) floorSelect.value = '';
         ALL_FLOORS.forEach(f => {
@@ -2105,19 +2179,12 @@ async function init() {
         updateNavbarForDashboard();
     }
 
-    const savedDate = localStorage.getItem('fas_selected_date');
-    if (savedDate && datePicker) {
-        datePicker.value = savedDate;
-        currentViewDate = savedDate;
-        const todayDateKey = getTodayDateKey();
-        isViewingToday = (savedDate === todayDateKey);
-        updateViewingInfo();
-        updateTotalForDate();
-        if (currentFloor) {
-            renderInitialRooms();
-            setupRealtimeListener(currentViewDate);
-        }
-    }
+    // Always use today's date — never restore old saved date
+    currentViewDate = getTodayDateKey();
+    setDatePickerToToday();
+
+    // Hide preloader — page is ready
+    hidePreloader();
 }
 
 function initNavbarButtons() {
@@ -2151,6 +2218,12 @@ function initNavbarButtons() {
 }
 
 function goBackToHome() {
+    // If on floor page, navigate to index.html
+    if (window.location.pathname.includes('floor.html')) {
+        window.location.href = 'index.html';
+        return;
+    }
+
     currentFloor = null;
     displayedCounts = {};
     localStorage.removeItem('fas_selected_floor');
