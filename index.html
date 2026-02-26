@@ -147,19 +147,6 @@
                             <div id="countdown-timer" class="navbar-countdown-time">--:--:--</div>
                             <div id="countdown-status" class="navbar-countdown-label">remaining</div>
                         </div>
-                        <button id="install-app-btn" class="navbar-btn navbar-btn-install hidden" title="Install App">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        </button>
-                        <div class="color-picker-wrapper">
-                            <button id="color-picker-btn" class="navbar-btn navbar-btn-icon" title="Theme Color">🎨</button>
-                            <div id="color-picker-dropdown" class="color-dropdown hidden">
-                                <button class="color-option" data-color="blue" title="Blue">🔵</button>
-                                <button class="color-option" data-color="green" title="Green">🟢</button>
-                                <button class="color-option" data-color="purple" title="Purple">🟣</button>
-                                <button class="color-option" data-color="indigo" title="Indigo">🟠</button>
-                            </div>
-                        </div>
-                        <button id="sound-toggle" class="navbar-btn navbar-btn-icon" title="Toggle Sound">🔊</button>
                         <a href="profile.html" class="navbar-icon-btn" id="navbar-profile-link" title="Profile">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         </a>
@@ -197,10 +184,32 @@
                         <span class="mobile-menu-icon">🏢</span>
                         <span>My Floor</span>
                     </a>
+                    <!-- Install App button for normal users: after My Floor -->
+                    <button id="mobile-menu-install-app" class="mobile-menu-item mobile-menu-install" style="display:none;">
+                        <span class="mobile-menu-icon" style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;">
+                            <span style="display:inline-block;width:18px;height:18px;">
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;margin-bottom:3px;"></span>
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;margin-bottom:3px;"></span>
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;"></span>
+                            </span>
+                        </span>
+                        <span>Install App</span>
+                    </button>
                     <a href="admin.html" class="mobile-menu-item mobile-menu-admin" id="mobile-menu-admin" style="display:none;">
                         <span class="mobile-menu-icon">🛡️</span>
                         <span>Admin Panel</span>
                     </a>
+                    <!-- Install App button for admin: after Admin Panel (hidden by default, shown by JS if admin) -->
+                    <button id="mobile-menu-install-app-admin" class="mobile-menu-item mobile-menu-install" style="display:none;">
+                        <span class="mobile-menu-icon" style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;">
+                            <span style="display:inline-block;width:18px;height:18px;">
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;margin-bottom:3px;"></span>
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;margin-bottom:3px;"></span>
+                                <span style="display:block;width:100%;height:3px;background:#6366f1;border-radius:2px;"></span>
+                            </span>
+                        </span>
+                        <span>Install App</span>
+                    </button>
                 </nav>
                 <div class="mobile-menu-footer">
                     <button id="mobile-menu-install-app" class="mobile-menu-item mobile-menu-install" style="display:none;">

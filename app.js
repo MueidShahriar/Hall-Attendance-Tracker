@@ -1,31 +1,51 @@
-// Mobile menu install app button logic
+// Mobile menu install app button logic (normal user & admin)
 document.addEventListener('DOMContentLoaded', function() {
     const mobileInstallBtn = document.getElementById('mobile-menu-install-app');
-    if (!mobileInstallBtn) return;
+    const mobileInstallBtnAdmin = document.getElementById('mobile-menu-install-app-admin');
     // Show only if install prompt is available
+    function showInstallBtnForRole(isAdmin) {
+        if (isAdmin && mobileInstallBtnAdmin) {
+            mobileInstallBtnAdmin.style.display = '';
+            if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+        } else if (mobileInstallBtn) {
+            mobileInstallBtn.style.display = '';
+            if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
+        }
+    }
+    // Detect admin role (assume userRole is set globally or via auth)
+    let isAdmin = false;
+    if (typeof window.userRole !== 'undefined') {
+        isAdmin = window.userRole === 'admin';
+    } else if (window.location.href.includes('admin.html')) {
+        isAdmin = true;
+    }
     if (window.deferredInstallPrompt) {
-        mobileInstallBtn.style.display = '';
+        showInstallBtnForRole(isAdmin);
     }
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         window.deferredInstallPrompt = e;
-        mobileInstallBtn.style.display = '';
+        showInstallBtnForRole(isAdmin);
     });
     window.addEventListener('appinstalled', () => {
         window.deferredInstallPrompt = null;
-        mobileInstallBtn.style.display = 'none';
+        if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+        if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
     });
-    mobileInstallBtn.addEventListener('click', function() {
+    function handleInstallClick() {
         if (window.deferredInstallPrompt) {
             window.deferredInstallPrompt.prompt();
             window.deferredInstallPrompt.userChoice.then((choice) => {
                 if (choice.outcome === 'accepted') {
-                    mobileInstallBtn.style.display = 'none';
+                    if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+                    if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
                 }
                 window.deferredInstallPrompt = null;
             });
         }
-    });
+    }
+    if (mobileInstallBtn) mobileInstallBtn.addEventListener('click', handleInstallClick);
+    if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.addEventListener('click', handleInstallClick);
 });
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove, increment, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
