@@ -12,9 +12,13 @@
     <meta name="apple-mobile-web-app-title" content="Hall Tracker">
     <link rel="apple-touch-icon" href="images/hall.png">
     <meta name="description" content="Track hall attendance across all floors in real-time">
+    <link rel="preload" href="images/hall.png" as="image">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/pages.css">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com" defer></script>
 </head>
 <body>
     <!-- Auth Modal -->
@@ -152,7 +156,7 @@
                             <div id="countdown-status" class="navbar-countdown-label">remaining</div>
                         </div>
                         <button id="install-app-btn" class="navbar-btn navbar-btn-install hidden" title="Install App">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </button>
                         <div class="color-picker-wrapper">
                             <button id="color-picker-btn" class="navbar-btn navbar-btn-icon" title="Theme Color">🎨</button>

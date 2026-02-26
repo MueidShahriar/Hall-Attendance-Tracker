@@ -1,5 +1,5 @@
-const CACHE_NAME = 'hall-tracker-v2';
-const DATA_CACHE_NAME = 'hall-tracker-data-v1';
+const CACHE_NAME = 'hall-tracker-v3';
+const DATA_CACHE_NAME = 'hall-tracker-data-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

@@ -164,6 +164,7 @@ document.getElementById('delete-account-btn').addEventListener('click', async ()
         await remove(ref(db, `users/${uid}`));
         await remove(ref(db, `activity_logs/${uid}`));
         await remove(ref(db, `fcm_tokens/${uid}`));
+        await remove(ref(db, `pending_deletions/${uid}`));
         
         // Delete Firebase Auth user
         try {

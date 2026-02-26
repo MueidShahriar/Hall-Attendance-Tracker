@@ -407,15 +407,38 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 const colorPickerBtn = document.getElementById('color-picker-btn');
 const colorDropdown = document.getElementById('color-picker-dropdown');
 const colorOptions = document.querySelectorAll('.color-option');
-const themeColors = {
-    indigo: { primary: '#EBB328', secondary: '#EBB328', gradient: 'linear-gradient(135deg, #EBB328 0%, #EBB328 100%)' },
-    blue: { primary: '#3b82f6', secondary: '#2563eb', gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' },
-    green: { primary: '#10b981', secondary: '#059669', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' },
-    purple: { primary: '#8b5cf6', secondary: '#7c3aed', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' },
-    rose: { primary: '#f43f5e', secondary: '#e11d48', gradient: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' }
-};
-function applyColorTheme(colorName) {
-    const theme = themeColors[colorName] || themeColors.indigo;
+
+// 20 Royal Theme Colors - randomly applied on each refresh
+const royalThemeColors = [
+    { name: 'Royal Indigo',    primary: '#4338ca', secondary: '#3730a3', gradient: 'linear-gradient(135deg, #4338ca 0%, #3730a3 100%)' },
+    { name: 'Sapphire Blue',   primary: '#1d4ed8', secondary: '#1e40af', gradient: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)' },
+    { name: 'Emerald Crown',   primary: '#059669', secondary: '#047857', gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)' },
+    { name: 'Royal Purple',    primary: '#7c3aed', secondary: '#6d28d9', gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' },
+    { name: 'Crimson Velvet',  primary: '#dc2626', secondary: '#b91c1c', gradient: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' },
+    { name: 'Imperial Gold',   primary: '#d97706', secondary: '#b45309', gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' },
+    { name: 'Midnight Navy',   primary: '#1e3a5f', secondary: '#0f2744', gradient: 'linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%)' },
+    { name: 'Rose Quartz',     primary: '#e11d48', secondary: '#be123c', gradient: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' },
+    { name: 'Amethyst',        primary: '#9333ea', secondary: '#7e22ce', gradient: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)' },
+    { name: 'Teal Dynasty',    primary: '#0d9488', secondary: '#0f766e', gradient: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)' },
+    { name: 'Burgundy Wine',   primary: '#881337', secondary: '#701a2e', gradient: 'linear-gradient(135deg, #881337 0%, #701a2e 100%)' },
+    { name: 'Cobalt Royal',    primary: '#2563eb', secondary: '#1d4ed8', gradient: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' },
+    { name: 'Forest Jade',     primary: '#15803d', secondary: '#166534', gradient: 'linear-gradient(135deg, #15803d 0%, #166534 100%)' },
+    { name: 'Plum Majesty',    primary: '#a21caf', secondary: '#86198f', gradient: 'linear-gradient(135deg, #a21caf 0%, #86198f 100%)' },
+    { name: 'Slate Crown',     primary: '#475569', secondary: '#334155', gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)' },
+    { name: 'Ruby Regalia',    primary: '#be123c', secondary: '#9f1239', gradient: 'linear-gradient(135deg, #be123c 0%, #9f1239 100%)' },
+    { name: 'Ocean Monarch',   primary: '#0369a1', secondary: '#075985', gradient: 'linear-gradient(135deg, #0369a1 0%, #075985 100%)' },
+    { name: 'Bronze Imperial',  primary: '#92400e', secondary: '#78350f', gradient: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)' },
+    { name: 'Violet Throne',   primary: '#6d28d9', secondary: '#5b21b6', gradient: 'linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)' },
+    { name: 'Majestic Cyan',   primary: '#0891b2', secondary: '#0e7490', gradient: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }
+];
+
+// Pick a random royal theme on each page load
+function getRandomRoyalTheme() {
+    return royalThemeColors[Math.floor(Math.random() * royalThemeColors.length)];
+}
+
+function applyColorTheme(colorNameOrTheme) {
+    const theme = typeof colorNameOrTheme === 'object' ? colorNameOrTheme : getRandomRoyalTheme();
     document.documentElement.style.setProperty('--theme-primary', theme.primary);
     document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
     document.documentElement.style.setProperty('--theme-gradient', theme.gradient);
@@ -430,27 +453,22 @@ function applyColorTheme(colorName) {
     document.querySelectorAll('.input-number').forEach(input => {
         input.style.setProperty('--focus-color', theme.primary);
     });
-    localStorage.setItem('fas_color_theme', colorName);
-    colorOptions.forEach(opt => {
-        opt.classList.remove('active');
-        if (opt.dataset.color === colorName) {
-            opt.classList.add('active');
-        }
-    });
 }
 if (colorPickerBtn) {
     colorPickerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         playSound('click');
-        if (colorDropdown) colorDropdown.classList.toggle('hidden');
+        // Apply a new random royal theme on click
+        const newTheme = getRandomRoyalTheme();
+        applyColorTheme(newTheme);
     });
 }
 colorOptions.forEach(option => {
     option.addEventListener('click', (e) => {
         e.stopPropagation();
         playSound('success');
-        const color = option.dataset.color;
-        applyColorTheme(color);
+        const newTheme = getRandomRoyalTheme();
+        applyColorTheme(newTheme);
         if (colorDropdown) colorDropdown.classList.add('hidden');
     });
 });
@@ -615,16 +633,46 @@ function applyLocationGating() {
 
 function requestLocationPermissionEarly() {
     if (!navigator.geolocation) return;
+    const modal = document.getElementById('location-permission-modal');
+    const allowBtn = document.getElementById('location-allow-btn');
+    const denyBtn = document.getElementById('location-deny-btn');
+    
+    function triggerNativePrompt() {
+        if (modal) modal.classList.add('hidden');
+        navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+    
+    function showLocationModal() {
+        if (!modal) { triggerNativePrompt(); return; }
+        modal.classList.remove('hidden');
+        if (allowBtn) {
+            allowBtn.onclick = () => triggerNativePrompt();
+        }
+        if (denyBtn) {
+            denyBtn.onclick = () => {
+                modal.classList.add('hidden');
+                localStorage.setItem('fas_location_dismissed', Date.now().toString());
+            };
+        }
+    }
+    
+    // Don't show modal if user dismissed within last 24 hours
+    const dismissed = localStorage.getItem('fas_location_dismissed');
+    if (dismissed && Date.now() - parseInt(dismissed) < 86400000) return;
+    
     if (navigator.permissions) {
         navigator.permissions.query({ name: 'geolocation' }).then(result => {
             if (result.state === 'prompt') {
-                navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                showLocationModal();
+            } else if (result.state === 'denied') {
+                // Already denied, don't bother
             }
+            // If 'granted', no need to show modal
         }).catch(() => {
-            navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            showLocationModal();
         });
     } else {
-        navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        showLocationModal();
     }
 }
 
@@ -2072,6 +2120,7 @@ async function handleRegister(e) {
     const name = document.getElementById('auth-register-name').value.trim();
     const email = document.getElementById('auth-register-email').value.trim();
     const roomNumber = document.getElementById('auth-register-room').value.trim();
+    const gender = document.getElementById('auth-register-gender')?.value || 'Male';
     const password = document.getElementById('auth-register-password').value;
     const confirmPassword = document.getElementById('auth-register-confirm-password').value;
     if (!name) {
@@ -2110,7 +2159,7 @@ async function handleRegister(e) {
             email: email,
             roomNumber: parseInt(roomNumber),
             role: 'member',
-            gender: 'Male',
+            gender: gender,
             emailVerified: false,
             createdAt: new Date().toISOString()
         });
@@ -2264,7 +2313,13 @@ async function checkAuth() {
                     }
                     updateProfileDisplay(user, userData);
                 } else {
-                    updateProfileDisplay(user, null);
+                    // User data deleted by admin — sign out and block access
+                    localStorage.clear();
+                    await signOut(firebaseAuth);
+                    showAuthModal();
+                    showAuthAlert('Your account has been removed by an administrator. Please contact admin for support.', 'error');
+                    resolve(false);
+                    return;
                 }
             } catch (error) {
                 updateProfileDisplay(user, null);
@@ -2275,8 +2330,8 @@ async function checkAuth() {
 }
 async function init() {
     updateSoundToggle();
-    const savedColorTheme = localStorage.getItem('fas_color_theme') || 'indigo';
-    applyColorTheme(savedColorTheme);
+    // Apply random royal theme on each page load
+    applyColorTheme(getRandomRoyalTheme());
     updateCountdown();
     setInterval(updateCountdown, 1000);
     requestNotificationPermission();

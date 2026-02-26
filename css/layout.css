@@ -188,14 +188,20 @@
     background: var(--bg-subtle);
 }
 .navbar-btn-install {
-    background: var(--success-subtle);
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
     color: #059669;
     border-color: #a7f3d0;
+    animation: installPulse 2s ease-in-out infinite;
 }
 .navbar-btn-install:hover {
-    background: #d1fae5;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     border-color: #6ee7b7;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.12);
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.2);
+    animation: none;
+}
+@keyframes installPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.15); }
+    50% { box-shadow: 0 0 0 6px rgba(5, 150, 105, 0); }
 }
 .navbar-btn.hidden { display: none; }
 

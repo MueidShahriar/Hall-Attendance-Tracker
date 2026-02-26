@@ -252,12 +252,23 @@ window._toggleRole = async function(uid, newRole) {
 
 // Delete user data
 window._deleteUser = async function(uid, name) {
-    if (!confirm(`Are you sure you want to delete user "${name}"? This will remove their data from the database.`)) return;
+    if (!confirm(`Are you sure you want to delete user "${name}"? This will remove all their data and queue their auth account for deletion.`)) return;
     try {
+        // Remove all user data from database
         await remove(ref(db, `users/${uid}`));
         await remove(ref(db, `activity_logs/${uid}`));
         await remove(ref(db, `fcm_tokens/${uid}`));
-        showToast(`User "${name}" data deleted`, 'success');
+        
+        // Queue Firebase Auth account deletion
+        // This marks the account for deletion; when the user tries to login,
+        // they will be blocked since their user data no longer exists
+        await set(ref(db, `pending_deletions/${uid}`), {
+            deletedBy: currentAdminUid,
+            deletedAt: new Date().toISOString(),
+            userName: name
+        });
+        
+        showToast(`User "${name}" fully deleted from Firebase`, 'success');
     } catch (e) {
         showToast('Failed to delete user: ' + e.message, 'error');
     }
