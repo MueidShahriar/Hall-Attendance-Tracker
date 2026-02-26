@@ -2083,7 +2083,7 @@ async function checkAuth() {
                         userRoomNumber = userData.roomNumber;
                         localStorage.setItem('userRoom', userData.roomNumber);
                     }
-                    const ADMIN_EMAILS = ['ahsanul.zim@gmail.com'];
+                    const ADMIN_EMAILS = ['ahsanul.zim@gmail.com', 'mdmueidshahriar16@gmail.com'];
                     if (ADMIN_EMAILS.includes(user.email?.toLowerCase())) {
                         isAdmin = true;
                         localStorage.setItem('fas_is_admin', 'true');
