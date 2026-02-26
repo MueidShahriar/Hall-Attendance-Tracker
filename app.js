@@ -1,3 +1,32 @@
+// Mobile menu install app button logic
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileInstallBtn = document.getElementById('mobile-menu-install-app');
+    if (!mobileInstallBtn) return;
+    // Show only if install prompt is available
+    if (window.deferredInstallPrompt) {
+        mobileInstallBtn.style.display = '';
+    }
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredInstallPrompt = e;
+        mobileInstallBtn.style.display = '';
+    });
+    window.addEventListener('appinstalled', () => {
+        window.deferredInstallPrompt = null;
+        mobileInstallBtn.style.display = 'none';
+    });
+    mobileInstallBtn.addEventListener('click', function() {
+        if (window.deferredInstallPrompt) {
+            window.deferredInstallPrompt.prompt();
+            window.deferredInstallPrompt.userChoice.then((choice) => {
+                if (choice.outcome === 'accepted') {
+                    mobileInstallBtn.style.display = 'none';
+                }
+                window.deferredInstallPrompt = null;
+            });
+        }
+    });
+});
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, get, remove, increment, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
