@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, get, remove, increment, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 import { 
@@ -42,7 +42,7 @@ let sentNotifications = {
 let activityLog = [];
 let displayedCounts = {};
 let currentUnsubscribe = null;
-let isLoggedIn = true;
+let isLoggedIn = false;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
@@ -867,6 +867,128 @@ function showNotification(message, type = 'info', duration = 5000) {
         }, duration);
     }
 }
+
+// ===== Toast Notification System =====
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌', danger: '🚨' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(toast);
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.add('toast-exit');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+}
+
+// ===== Firebase Retry Wrapper =====
+async function firebaseRetry(fn, maxRetries = 3, delay = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (attempt === maxRetries) {
+                showToast('Operation failed after retries. Please try again.', 'error');
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        }
+    }
+}
+
+// ===== Offline/Online Banner =====
+function setupOfflineBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    const updateBanner = () => {
+        if (navigator.onLine) {
+            banner.style.display = 'none';
+        } else {
+            banner.style.display = 'block';
+        }
+    };
+    window.addEventListener('online', () => {
+        updateBanner();
+        showToast('You\'re back online!', 'success', 3000);
+    });
+    window.addEventListener('offline', () => {
+        updateBanner();
+        showToast('You\'re offline. Some features may be limited.', 'warning', 5000);
+    });
+    updateBanner();
+}
+
+// ===== Dashboard Announcements =====
+function loadDashboardAnnouncements() {
+    if (!db) return;
+    const banner = document.getElementById('announcements-banner');
+    if (!banner) return;
+    // Only show announcements to logged-in users
+    if (!isLoggedIn) {
+        banner.style.display = 'none';
+        return;
+    }
+    const announcementsRef = ref(db, 'announcements');
+    onValue(announcementsRef, (snapshot) => {
+        if (!snapshot.exists()) {
+            banner.style.display = 'none';
+            return;
+        }
+        const announcements = snapshot.val();
+        const now = Date.now();
+        const entries = Object.entries(announcements)
+            .map(([id, data]) => ({ id, ...data }))
+            .filter(a => !a.expiresAt || a.expiresAt > now)
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        if (entries.length === 0) {
+            banner.style.display = 'none';
+            return;
+        }
+        const latest = entries[0];
+        const date = latest.createdAt ? new Date(latest.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const typeClass = latest.type ? `announcement-banner-${latest.type}` : 'announcement-banner-info';
+        banner.innerHTML = `
+            <div class="announcement-banner-item ${typeClass}">
+                <span>📢</span>
+                <div style="flex:1;">
+                    <div class="ann-title">${latest.title || 'Announcement'}</div>
+                    <div class="ann-message">${latest.message || ''}</div>
+                    <div class="ann-time">${date}</div>
+                </div>
+            </div>
+        `;
+        banner.style.display = 'flex';
+    }, { onlyOnce: false });
+}
+
+// ===== Navbar Menu Links =====
+function updateNavbarMenuLinks() {
+    const adminLink = document.getElementById('mobile-menu-admin');
+    const logoutItem = document.getElementById('mobile-menu-logout');
+    const myFloorLink = document.getElementById('mobile-menu-myfloor');
+    if (adminLink) {
+        adminLink.style.display = isAdmin ? 'flex' : 'none';
+    }
+    if (logoutItem) {
+        logoutItem.style.display = (isLoggedIn && !isViewOnlyMode) ? 'flex' : 'none';
+    }
+    if (myFloorLink && userRoomNumber) {
+        const floor = Math.floor(parseInt(userRoomNumber) / 100);
+        if (floor >= 1 && floor <= 6) {
+            myFloorLink.href = `floor.html?floor=${floor}`;
+            myFloorLink.style.display = 'flex';
+        }
+    }
+}
+
 function checkInputWindowAndNotify() {
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
@@ -1786,40 +1908,32 @@ function showVerificationWaitingModal(user, email) {
     }, 3000);
 }
 function updateProfileDisplay(user, userData) {
-    const profileSection = document.getElementById('user-profile-section');
-    if (user && profileSection) {
-        const displayName = user.displayName || userData?.fullName || 'User';
+    if (user) {
         const roomNumber = userData?.roomNumber || '';
-        const adminBadge = isAdmin ? '<span class="profile-admin-badge">ADMIN</span>' : '';
-        profileSection.innerHTML = `
-            <div class="profile-name-display">
-                ${adminBadge}
-                <span id="profile-name-display">${displayName}</span>
-                <span class="profile-room-badge" id="profile-room-display">${roomNumber ? 'Room ' + roomNumber : ''}</span>
-            </div>
-        `;
         if (roomNumber) {
             userRoomNumber = roomNumber;
             localStorage.setItem('userRoom', roomNumber);
         }
     }
+    const mMenuName = document.getElementById('mobile-menu-name');
+    const mMenuEmail = document.getElementById('mobile-menu-email');
+    const mMenuAvatar = document.getElementById('mobile-menu-avatar');
+    if (user) {
+        const name = user.displayName || userData?.fullName || 'User';
+        if (mMenuName) mMenuName.textContent = name;
+        if (mMenuEmail) mMenuEmail.textContent = user.email || '';
+        if (mMenuAvatar) mMenuAvatar.textContent = name.charAt(0).toUpperCase();
+    }
+    updateNavbarMenuLinks();
 }
 function updateProfileDisplayForGuest() {
-    const profileSection = document.getElementById('user-profile-section');
-    if (profileSection) {
-        profileSection.innerHTML = `
-            <div class="profile-name-display" id="guest-login-btn" title="Click to login" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); cursor: pointer;">
-                <span>👁️ View Only</span>
-            </div>
-        `;
-        const guestLoginBtn = document.getElementById('guest-login-btn');
-        if (guestLoginBtn) {
-            guestLoginBtn.onclick = (e) => {
-                e.preventDefault();
-                showAuthModal();
-            };
-        }
-    }
+    const mMenuName = document.getElementById('mobile-menu-name');
+    const mMenuEmail = document.getElementById('mobile-menu-email');
+    const mMenuAvatar = document.getElementById('mobile-menu-avatar');
+    if (mMenuName) mMenuName.textContent = 'Guest';
+    if (mMenuEmail) mMenuEmail.textContent = 'View Only Mode';
+    if (mMenuAvatar) mMenuAvatar.textContent = 'G';
+    updateNavbarMenuLinks();
 }
 async function cleanupUnverifiedUsers() {
     if (!db) return;
@@ -1873,7 +1987,14 @@ async function handleLogin(e) {
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         if (!userCredential.user.emailVerified) {
-            showAuthAlert('Please verify your email before logging in. Check your inbox.', 'warning');
+            // Auto-resend verification email
+            try {
+                await sendEmailVerification(userCredential.user);
+                // Clear pending flag if set by admin
+                const userRef = ref(db, `users/${userCredential.user.uid}`);
+                await update(userRef, { pendingVerifyEmail: false });
+            } catch(verifyErr) {}
+            showAuthAlert('Please verify your email before logging in. A new verification email has been sent. Check your inbox & spam folder.', 'warning');
             loginBtn.disabled = false;
             loginBtn.innerHTML = '<span class="btn-text">Login</span>';
             return;
@@ -1940,6 +2061,7 @@ async function handleRegister(e) {
             email: email,
             roomNumber: parseInt(roomNumber),
             role: 'member',
+            gender: 'Male',
             emailVerified: false,
             createdAt: new Date().toISOString()
         });
@@ -2032,9 +2154,9 @@ async function checkAuth() {
     return new Promise((resolve) => {
         onAuthStateChanged(firebaseAuth, async (user) => {
             if (!user) {
+                isLoggedIn = false;
                 if (isViewOnlyRequested) {
                     isViewOnlyMode = true;
-                    isLoggedIn = false;
                     userRoomNumber = null;
                     userName = 'Guest';
                     hideAuthModal();
@@ -2059,8 +2181,6 @@ async function checkAuth() {
             isLoggedIn = true;
             isViewOnlyMode = false;
 
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (isViewOnlyRequested) {
                 urlParams.delete('viewOnly');
                 const newUrl = urlParams.toString()
@@ -2121,6 +2241,9 @@ async function init() {
     await checkAuth();
     initializeDatePicker();
     initNavbarButtons();
+    setupOfflineBanner();
+    loadDashboardAnnouncements();
+    initStatsCounter();
 
     await initFCM();
     requestFCMToken();
@@ -2190,17 +2313,45 @@ async function init() {
 }
 
 function initNavbarButtons() {
-    const backBtn = document.getElementById('back-to-home-btn');
-    const logoutBtn = document.getElementById('logout-btn');
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const overlay = document.getElementById('mobile-menu-overlay');
+    const closeBtn = document.getElementById('mobile-menu-close');
+    const mobileLogout = document.getElementById('mobile-menu-logout');
 
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            goBackToHome();
+    function openMobileMenu() {
+        if (overlay) overlay.classList.add('active');
+        if (hamburgerBtn) hamburgerBtn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeMobileMenu() {
+        if (overlay) overlay.classList.remove('active');
+        if (hamburgerBtn) hamburgerBtn.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', () => {
+            if (overlay && overlay.classList.contains('active')) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        });
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMobileMenu);
+    }
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || !document.getElementById('mobile-menu-panel').contains(e.target)) {
+                closeMobileMenu();
+            }
         });
     }
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
+    if (mobileLogout) {
+        mobileLogout.addEventListener('click', async () => {
+            closeMobileMenu();
             if (confirm('Are you sure you want to logout?')) {
                 try {
                     await signOut(firebaseAuth);
@@ -2219,71 +2370,15 @@ function initNavbarButtons() {
     }
 }
 
-function goBackToHome() {
-    // If on floor page, navigate to index.html
-    if (window.location.pathname.includes('floor.html')) {
-        window.location.href = 'index.html';
-        return;
-    }
-
-    currentFloor = null;
-    displayedCounts = {};
-    localStorage.removeItem('fas_selected_floor');
-
-    if (floorSelect) floorSelect.value = '';
-    ALL_FLOORS.forEach(f => {
-        const fc = document.getElementById(`floor-card-${f}`);
-        if (fc) fc.classList.remove('floor-selected');
-    });
-
-    const animateOut = [];
-    if (totalAttendanceCard && !totalAttendanceCard.classList.contains('hidden')) {
-        totalAttendanceCard.classList.add('page-fade-exit');
-        animateOut.push(totalAttendanceCard);
-    }
-    if (roomContainer && !roomContainer.classList.contains('hidden')) {
-        roomContainer.classList.add('page-transition-exit');
-        animateOut.push(roomContainer);
-    }
-
-    setTimeout(() => {
-        animateOut.forEach(el => {
-            el.classList.add('hidden');
-            el.classList.remove('page-fade-exit', 'page-transition-exit');
-        });
-
-        if (noFloorMessage) {
-            noFloorMessage.classList.remove('hidden');
-            noFloorMessage.classList.add('page-transition-enter');
-            setTimeout(() => noFloorMessage.classList.remove('page-transition-enter'), 400);
-        }
-    }, 250);
-
-    if (countdownContainer) countdownContainer.classList.add('hidden');
-    if (timeNote) timeNote.classList.add('hidden');
-    if (dateDisplay) dateDisplay.innerHTML = '';
-    if (roomSearch) roomSearch.value = '';
-
-    updateNavbarForDashboard();
-    setupTotalHallListener();
-    playSound('click');
-}
-
 function updateNavbarForFloorView() {
-    const backBtn = document.getElementById('back-to-home-btn');
     const navStatus = document.getElementById('navbar-status');
-
-    if (backBtn) backBtn.classList.remove('hidden');
     if (navStatus && currentFloor) {
         navStatus.textContent = `${getOrdinalSuffix(currentFloor)} Floor`;
     }
 }
 
 function updateNavbarForDashboard() {
-    const backBtn = document.getElementById('back-to-home-btn');
     const navStatus = document.getElementById('navbar-status');
-
-    if (backBtn) backBtn.classList.add('hidden');
     if (navStatus) navStatus.textContent = 'Dashboard';
 }
 
@@ -2309,6 +2404,41 @@ function updateViewingInfo() {
     if (viewingText) {
         viewingText.textContent = formatDisplayDate(currentViewDate);
     }
+}
+
+// ===== Stats Counter: Total Views & Online Now =====
+function initStatsCounter() {
+    // Increment total views
+    const viewsRef = ref(db, 'stats/totalViews');
+    update(ref(db, 'stats'), { totalViews: increment(1) }).catch(() => {});
+
+    // Listen for total views
+    onValue(viewsRef, (snapshot) => {
+        const views = snapshot.val() || 0;
+        const el = document.getElementById('stats-total-views');
+        if (el) el.textContent = views.toLocaleString();
+    });
+
+    // Online presence tracking
+    const sessionId = (userId || 'anon') + '_' + Math.random().toString(36).substr(2, 9);
+    const onlineRef = ref(db, `stats/online/${sessionId}`);
+    const connectedRef = ref(db, '.info/connected');
+
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            set(onlineRef, { timestamp: Date.now() });
+            onDisconnect(onlineRef).remove();
+        }
+    });
+
+    // Listen for online count
+    const onlineListRef = ref(db, 'stats/online');
+    onValue(onlineListRef, (snapshot) => {
+        const onlineData = snapshot.val();
+        const count = onlineData ? Object.keys(onlineData).length : 0;
+        const el = document.getElementById('stats-online-now');
+        if (el) el.textContent = count.toLocaleString();
+    });
 }
 
 init();

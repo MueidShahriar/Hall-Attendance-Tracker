@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         body {
-            background: transparent;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf8 50%, #f5f3ff 100%);
             min-height: 100vh;
         }
         .auth-container {
@@ -20,22 +20,27 @@
             background: transparent;
         }
         .auth-card {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow:
+                0 32px 64px -12px rgba(0, 0, 0, 0.12),
+                0 0 0 1px rgba(255, 255, 255, 0.6) inset;
             width: 100%;
-            max-width: 420px;
-            padding: 40px;
-            animation: slideUp 0.5s ease;
+            max-width: 440px;
+            padding: 40px 36px;
+            animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(32px) scale(0.96);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
         /* Form visibility control */
@@ -68,9 +73,9 @@
     <div class="auth-container" id="auth-page" style="opacity: 0; transition: opacity 0.4s ease;">
         <div class="auth-card">
             <div style="text-align: center; margin-bottom: 24px;">
-                <img src="images/hall.png" alt="Hall Logo" style="width: 64px; height: 64px; margin: 0 auto 12px;">
-                <h1 style="font-size: 1.5rem; font-weight: 700; color: #111827;">Hall Attendance Tracker</h1>
-                <p style="color: #6b7280; margin-top: 4px;">Welcome! Please login or create an account</p>
+                <img src="images/hall.png" alt="Hall Logo" style="width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 16px; box-shadow: 0 4px 16px rgba(99,102,241,0.15);">
+                <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary, #1e293b); letter-spacing: -0.02em;">Hall Attendance Tracker</h1>
+                <p style="color: var(--text-muted, #94a3b8); margin-top: 4px; font-size: 14px;">Welcome! Please login or create an account</p>
             </div>
             <div id="alert-box" class="alert"></div>
             <div class="tab-container">
@@ -100,7 +105,7 @@
                 <div class="divider">
                     <span>or</span>
                 </div>
-                <a href="index.html?viewOnly=true" class="auth-btn" style="text-decoration: none; text-align: center; display: block; background: #f3f4f6; color: #374151; border: 2px solid #e5e7eb;">
+                <a href="index.html?viewOnly=true" class="auth-btn" style="text-decoration: none; text-align: center; display: block; background: var(--bg-subtle, #f8fafc); color: var(--text-primary, #374151); border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 12px;">
                     👁️ Continue without login
                 </a>
             </form>
@@ -142,8 +147,8 @@
             </form>
             <form id="forgot-form" class="auth-form">
                 <div style="text-align: center; margin-bottom: 16px;">
-                    <h2 style="font-size: 1.25rem; font-weight: 700; color: #111827;">Reset Password</h2>
-                    <p style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Enter your email to receive a password reset link</p>
+                    <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary, #1e293b); letter-spacing: -0.01em;">Reset Password</h2>
+                    <p style="color: var(--text-muted, #94a3b8); font-size: 0.875rem; margin-top: 4px;">Enter your email to receive a password reset link</p>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="forgot-email">Email Address</label>
@@ -153,7 +158,7 @@
                 <button type="submit" class="auth-btn auth-btn-primary" id="forgot-btn">
                     <span class="btn-text">Send Reset Link</span>
                 </button>
-                <button type="button" class="auth-btn" id="back-to-login" style="background: #f3f4f6; color: #374151; margin-top: 12px;">
+                <button type="button" class="auth-btn" id="back-to-login" style="background: var(--bg-subtle, #f8fafc); color: var(--text-primary, #374151); margin-top: 12px; border: 1.5px solid var(--border-light, #e2e8f0);">
                     ← Back to Login
                 </button>
             </form>

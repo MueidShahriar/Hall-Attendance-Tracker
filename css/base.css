@@ -1,43 +1,94 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 :root {
-    --bg: #f1f5f9;
+    /* Color System - Premium Palette */
+    --bg: #f8fafc;
+    --bg-subtle: #f1f5f9;
     --card: #ffffff;
-    --muted: #6b7280;
+    --card-hover: #fefefe;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-light: #cbd5e1;
+    --muted: #64748b;
     --accent: #6366f1;
+    --accent-light: #818cf8;
+    --accent-subtle: #eef2ff;
     --danger: #ef4444;
+    --danger-subtle: #fef2f2;
     --success: #10b981;
+    --success-subtle: #ecfdf5;
     --warning: #f59e0b;
+    --warning-subtle: #fffbeb;
+    --info: #3b82f6;
+    --info-subtle: #eff6ff;
+    
+    /* Theme */
     --theme-primary: #6366f1;
     --theme-secondary: #7c3aed;
-    --theme-gradient: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+    --theme-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #7c3aed 100%);
+    --theme-gradient-subtle: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #faf5ff 100%);
+    
+    /* Spacing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
     --spacing-md: 16px;
     --spacing-lg: 24px;
     --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    
+    /* Radius */
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
-    --radius-xl: 24px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
     --radius-full: 9999px;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 6px 18px rgba(16, 24, 40, 0.06);
-    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.15);
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.2s ease;
-    --transition-slow: 0.3s ease;
+    
+    /* Shadows - Layered for depth */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+    --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+    
+    /* Glass morphism */
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --glass-blur: blur(16px);
+    
+    /* Transitions */
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
+html {
+    scroll-behavior: smooth;
+    text-size-adjust: 100%;
+}
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background-color: var(--bg);
     min-height: 100vh;
-    line-height: 1.5;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--text-primary);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+::selection {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--text-primary);
 }
 ::-webkit-scrollbar {
     width: 6px;
@@ -50,17 +101,39 @@ body {
     background-color: #cbd5e1;
     border-radius: 3px;
 }
-:focus-visible {
-    outline: 3px solid rgba(99, 102, 241, 0.4);
-    outline-offset: 2px;
+::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
 }
+:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.5);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ===== Animations ===== */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 @keyframes slideIn {
     from { transform: translateY(-100%); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideInRight {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 @keyframes spin {
     to { transform: rotate(360deg); }
@@ -75,28 +148,35 @@ body {
 }
 @keyframes pop {
     0% { transform: scale(1); }
-    40% { transform: scale(1.18); }
+    40% { transform: scale(1.12); }
     100% { transform: scale(1); }
 }
-
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
 @keyframes pageSlideIn {
-    from { opacity: 0; transform: translateY(20px); }
+    from { opacity: 0; transform: translateY(16px); }
     to { opacity: 1; transform: translateY(0); }
 }
 @keyframes pageSlideOut {
     from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 0; transform: translateY(-12px); }
 }
 @keyframes pageFadeIn {
-    from { opacity: 0; transform: scale(0.97); }
+    from { opacity: 0; transform: scale(0.98); }
     to { opacity: 1; transform: scale(1); }
 }
 @keyframes pageFadeOut {
     from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.97); }
+    to { opacity: 0; transform: scale(0.98); }
 }
 .page-transition-enter {
-    animation: pageSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: pageSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .page-transition-exit {
     animation: pageSlideOut 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -107,20 +187,18 @@ body {
 .page-fade-exit {
     animation: pageFadeOut 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-
 @keyframes roomCardEnter {
-    from { opacity: 0; transform: translateY(16px) scale(0.95); }
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .room-card-animate {
-    animation: roomCardEnter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: roomCardEnter 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     opacity: 0;
 }
-
 @keyframes floorCardPulse {
-    0%, 100% { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
-    50% { box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
+    0%, 100% { box-shadow: var(--shadow-md); }
+    50% { box-shadow: var(--shadow-lg); }
 }
 .floor-card-pulse {
-    animation: floorCardPulse 2s ease-in-out infinite;
+    animation: floorCardPulse 2.5s ease-in-out infinite;
 }

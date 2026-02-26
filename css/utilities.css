@@ -2,7 +2,7 @@
 .page-loader {
     position: fixed;
     inset: 0;
-    background: #ffffff;
+    background: var(--card);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -29,32 +29,32 @@
     margin: 0 auto 28px;
 }
 .preloader-logo-img {
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
     animation: logoPulse 2s ease-in-out infinite;
 }
 @keyframes logoPulse {
     0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(1.06); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
 }
 .preloader-ring {
     width: 100px;
     height: 100px;
-    border: 3px solid #f0f0f0;
-    border-top: 3px solid #6366f1;
-    border-right: 3px solid #a5b4fc;
+    border: 3px solid var(--border-light);
+    border-top: 3px solid var(--theme-primary);
+    border-right: 3px solid var(--accent-light);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 .preloader-text {
-    color: #1f2937;
-    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
     font-weight: 600;
     letter-spacing: 0.5px;
     margin-bottom: 20px;
@@ -67,21 +67,18 @@
 .preloader-dots span {
     width: 8px;
     height: 8px;
-    background: #6366f1;
+    background: var(--theme-primary);
     border-radius: 50%;
     animation: dotBounce 1.4s ease-in-out infinite;
 }
-.preloader-dots span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-.preloader-dots span:nth-child(3) {
-    animation-delay: 0.4s;
-}
+.preloader-dots span:nth-child(2) { animation-delay: 0.2s; }
+.preloader-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dotBounce {
     0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
     40% { transform: scale(1); opacity: 1; }
 }
-/* Legacy preloader styles */
+
+/* Legacy preloader */
 .spinner {
     width: 50px;
     height: 50px;
@@ -98,10 +95,13 @@
     letter-spacing: 0.025em;
     animation: pulse 1s ease-in-out infinite;
 }
-/* App reveal transition */
+
+/* App reveal */
 #app {
     transition: opacity 0.4s ease;
 }
+
+/* ===== Countdown Fixed ===== */
 .countdown-fixed {
     position: fixed;
     top: 12px;
@@ -109,28 +109,23 @@
     z-index: 250;
     background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
     padding: 10px 16px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     text-align: center;
-    box-shadow: 0 4px 15px rgba(30, 58, 138, 0.5);
+    box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4);
     cursor: move;
     user-select: none;
     touch-action: none;
     transition: box-shadow 0.2s ease;
 }
 .countdown-fixed:active {
-    box-shadow: 0 8px 25px rgba(30, 58, 138, 0.6);
+    box-shadow: 0 8px 25px rgba(30, 58, 138, 0.5);
 }
 .countdown-fixed.dragging {
     opacity: 0.9;
     transform: scale(1.02);
 }
-.countdown-fixed .countdown-timer {
-    color: white !important;
-    font-weight: 700;
-}
-.countdown-fixed .countdown-status {
-    color: rgba(255, 255, 255, 0.8);
-}
+.countdown-fixed .countdown-timer { color: white !important; font-weight: 700; }
+.countdown-fixed .countdown-status { color: rgba(255, 255, 255, 0.8); }
 .countdown-fixed .countdown-timer.text-red-600 {
     color: #fca5a5 !important;
     animation: countdownUrgent 0.5s ease-in-out infinite;
@@ -139,20 +134,14 @@
     font-family: 'Inter', monospace;
     font-weight: 800;
     letter-spacing: 2px;
-    text-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+    text-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
     transition: color 0.3s ease, transform 0.3s ease;
 }
 .countdown-timer.pulse {
     animation: countdownPulse 1s ease-in-out infinite;
 }
-.countdown-label {
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-.countdown-status {
-    margin-top: 4px;
-    font-weight: 500;
-}
+.countdown-label { font-weight: 600; margin-bottom: 4px; }
+.countdown-status { margin-top: 4px; font-weight: 500; }
 @keyframes countdownUrgent {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
@@ -161,21 +150,27 @@
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.05); }
 }
+
+/* ===== Notifications ===== */
 .notification {
-    animation: slideIn 0.3s ease-out;
+    animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(12px);
 }
 .notification-warning {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%);
 }
 .notification-info {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
 }
 .notification-success {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
 }
 .notification-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%);
 }
+
+/* ===== Confetti ===== */
 .confetti-canvas {
     position: fixed;
     top: 0;

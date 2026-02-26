@@ -13,15 +13,16 @@
     <link rel="apple-touch-icon" href="images/hall.png">
     <meta name="description" content="Track hall attendance across all floors in real-time">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/pages.css">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="auth-modal" class="auth-modal-overlay">
         <div class="auth-modal-card">
             <div class="text-center mb-6">
-                <img src="images/hall.png" alt="Hall Logo" class="w-16 h-16 mx-auto mb-3">
-                <h1 class="text-2xl font-bold text-gray-900">Hall Attendance Tracker</h1>
-                <p class="text-gray-500 mt-1">Welcome! Please login or create an account</p>
+                <img src="images/hall.png" alt="Hall Logo" class="w-16 h-16 mx-auto mb-3" style="border-radius:16px; box-shadow: 0 4px 16px rgba(99,102,241,0.15);">
+                <h1 class="text-2xl font-bold" style="color: var(--text-primary, #1e293b); letter-spacing: -0.02em;">Hall Attendance Tracker</h1>
+                <p class="mt-1" style="color: var(--text-muted, #94a3b8); font-size: 14px;">Welcome! Please login or create an account</p>
             </div>
             <div id="auth-alert-box" class="auth-alert"></div>
             <div class="auth-tab-container" id="auth-tab-container">
@@ -93,8 +94,8 @@
             </form>
             <form id="auth-forgot-form" class="auth-form">
                 <div class="text-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-900">Reset Password</h2>
-                    <p class="text-gray-500 text-sm mt-1">Enter your email to receive a password reset link</p>
+                    <h2 class="text-xl font-bold" style="color: var(--text-primary, #1e293b);">Reset Password</h2>
+                    <p class="text-sm mt-1" style="color: var(--text-muted, #94a3b8);">Enter your email to receive a password reset link</p>
                 </div>
                 <div class="auth-form-group">
                     <label class="auth-form-label" for="auth-forgot-email">Email Address</label>
@@ -122,6 +123,10 @@
     </div>
     <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
     <div id="app" class="min-h-screen" style="opacity: 0; transition: opacity 0.4s ease;">
+        <div id="toast-container" class="toast-container"></div>
+        <div id="offline-banner" class="offline-banner" style="display:none;">📡 You're offline — some features may be limited</div>
+        <div class="app-bg-decoration" aria-hidden="true" style="position:fixed;top:-120px;right:-120px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.05) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+        <div class="app-bg-decoration" aria-hidden="true" style="position:fixed;bottom:-100px;left:-100px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,0.04) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
         <div id="geo-toast-container" class="geo-toast-container"></div>
         <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4">
         </div>
@@ -132,55 +137,82 @@
                     <div class="navbar-brand">
                         <img src="images/hall.png" alt="Hall Logo" class="navbar-logo">
                         <div class="navbar-title-group">
-                            <h1 class="navbar-title">Hall Attendance Tracker</h1>
+                            <h1 class="navbar-title">Hall Attendance</h1>
                             <span class="navbar-subtitle" id="navbar-status">Dashboard</span>
                         </div>
                     </div>
                     <div class="navbar-quick-icons">
+                        <div id="navbar-countdown" class="navbar-countdown hidden">
+                            <span class="navbar-countdown-icon">⏱</span>
+                            <div id="countdown-timer" class="navbar-countdown-time">--:--:--</div>
+                            <div id="countdown-status" class="navbar-countdown-label">remaining</div>
+                        </div>
+                        <button id="install-app-btn" class="navbar-btn navbar-btn-install hidden" title="Install App">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
                         <div class="color-picker-wrapper">
                             <button id="color-picker-btn" class="navbar-btn navbar-btn-icon" title="Theme Color">🎨</button>
                             <div id="color-picker-dropdown" class="color-dropdown hidden">
                                 <button class="color-option" data-color="blue" title="Blue">🔵</button>
                                 <button class="color-option" data-color="green" title="Green">🟢</button>
                                 <button class="color-option" data-color="purple" title="Purple">🟣</button>
-                                <button class="color-option" data-color="rose" title="Rose">🔴</button>
                                 <button class="color-option" data-color="indigo" title="Indigo">🟠</button>
                             </div>
                         </div>
                         <button id="sound-toggle" class="navbar-btn navbar-btn-icon" title="Toggle Sound">🔊</button>
+                        <a href="profile.html" class="navbar-icon-btn" id="navbar-profile-link" title="Profile">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </a>
+                        <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                        </button>
                     </div>
                 </div>
-                <div class="navbar-row-profile">
-                    <div id="user-profile-section" class="user-profile-section">
-                        <div class="profile-name-display">
-                            <span id="profile-name-display">User</span>
-                            <span class="profile-room-badge" id="profile-room-display"></span>
+            </div>
+        </nav>
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+            <div class="mobile-menu-panel" id="mobile-menu-panel">
+                <div class="mobile-menu-header">
+                    <div class="mobile-menu-user" id="mobile-menu-user">
+                        <div class="mobile-menu-avatar" id="mobile-menu-avatar">U</div>
+                        <div>
+                            <div class="mobile-menu-name" id="mobile-menu-name">User</div>
+                            <div class="mobile-menu-email" id="mobile-menu-email"></div>
                         </div>
                     </div>
+                    <button class="mobile-menu-close" id="mobile-menu-close">&times;</button>
                 </div>
-                <div class="navbar-row-actions">
-                    <button id="back-to-home-btn" class="navbar-btn navbar-btn-home hidden" title="Back to Dashboard">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <nav class="mobile-menu-nav">
+                    <a href="index.html" class="mobile-menu-item mobile-menu-item-active">
+                        <span class="mobile-menu-icon">🏠</span>
                         <span>Home</span>
-                    </button>
-                    <button id="install-app-btn" class="navbar-btn navbar-btn-install hidden" title="Install App">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        <span>Install App</span>
-                    </button>
-                    <div id="navbar-countdown" class="navbar-countdown hidden">
-                        <span class="navbar-countdown-icon">⏱</span>
-                        <div id="countdown-timer" class="navbar-countdown-time">--:--:--</div>
-                        <div id="countdown-status" class="navbar-countdown-label">remaining</div>
-                    </div>
-                    <button id="logout-btn" class="navbar-btn navbar-btn-logout hidden" title="Logout">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </a>
+                    <a href="profile.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="mobile-menu-item" id="mobile-menu-myfloor" style="display:none;">
+                        <span class="mobile-menu-icon">🏢</span>
+                        <span>My Floor</span>
+                    </a>
+                    <a href="admin.html" class="mobile-menu-item mobile-menu-admin" id="mobile-menu-admin" style="display:none;">
+                        <span class="mobile-menu-icon">⚙️</span>
+                        <span>Admin Panel</span>
+                    </a>
+                </nav>
+                <div class="mobile-menu-footer">
+                    <button id="mobile-menu-logout" class="mobile-menu-item mobile-menu-logout" style="display:none;">
+                        <span class="mobile-menu-icon">⏻</span>
                         <span>Logout</span>
                     </button>
                 </div>
             </div>
-        </nav>
+        </div>
 
         <div class="app-content">
+        <div id="announcements-banner" class="announcements-banner" style="display:none;"></div>
         <div id="geo-location-banner" class="geo-location-banner hidden">
             <span id="geo-location-icon" class="geo-location-icon">📡</span>
             <span id="geo-location-text" class="geo-location-text">Checking location...</span>
@@ -210,25 +242,25 @@
         </div>
 
         <div class="max-w-6xl mx-auto mb-6 px-4">
-            <div id="total-attendance-card" class="gradient-card p-6 sm:p-8 rounded-3xl shadow-xl mb-0 hidden">
-                <p id="floor-title" class="text-sm uppercase font-medium text-white/90 mb-2 text-center tracking-wider">Total in Hall</p>
+            <div id="total-attendance-card" class="gradient-card p-6 sm:p-8 rounded-3xl mb-0 hidden" style="box-shadow: 0 20px 50px -12px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;">
+                <p id="floor-title" class="text-sm uppercase font-medium text-white/90 mb-2 text-center" style="letter-spacing: 0.1em; font-size: 0.8rem;">Total in Hall</p>
                 <div class="flex justify-center items-center">
-                    <span id="total-count-display" class="text-6xl sm:text-7xl font-bold text-white">0</span>
+                    <span id="total-count-display" class="text-6xl sm:text-7xl font-bold text-white" style="letter-spacing: -0.03em;">0</span>
                 </div>
             </div>
-            <p id="loading-status" class="text-sm text-gray-600 mt-1 text-center hidden">Initializing database and loading data...</p>
-            <p id="date-display" class="text-xs text-gray-500 mt-1 text-center"></p>
-            <p id="time-note" class="text-sm font-bold text-red-600 mt-1 text-center hidden">Note: Attendance input is only allowed between 6:30 PM to 10:00 PM.</p>
+            <p id="loading-status" class="text-sm mt-1 text-center hidden" style="color: var(--text-muted, #94a3b8);">Initializing database and loading data...</p>
+            <p id="date-display" class="text-xs mt-1 text-center" style="color: var(--text-muted, #94a3b8);"></p>
+            <p id="time-note" class="text-sm font-bold mt-1 text-center hidden" style="color: var(--theme-danger, #ef4444); background: #fef2f2; padding: 8px 16px; border-radius: 10px; border: 1px solid #fecaca;">Note: Attendance input is only allowed between 6:30 PM to 10:00 PM.</p>
             <div id="no-floor-message" class="text-center py-4 mt-2">       
-                <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl shadow-xl max-w-md mx-auto mb-3">
-                    <p class="text-sm uppercase font-medium text-white/90 mb-2 text-center tracking-wider">🏛️ Total Students Present in Hall</p>
+                <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl max-w-md mx-auto mb-3" style="box-shadow: 0 20px 50px -12px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;">
+                    <p class="text-sm uppercase font-medium text-white/90 mb-2 text-center" style="letter-spacing: 0.1em; font-size: 0.8rem;">🏛️ Total Students Present in Hall</p>
                     <div class="flex justify-center items-center">
-                        <span id="total-hall-count" class="text-5xl sm:text-6xl font-bold text-white">0</span>
+                        <span id="total-hall-count" class="text-5xl sm:text-6xl font-bold text-white" style="letter-spacing: -0.03em;">0</span>
                     </div>
-                    <p class="text-xs text-white/70 mt-2 text-center">Combined attendance across all floors</p>
+                    <p class="text-xs text-white/70 mt-2 text-center" style="font-weight: 500;">Combined attendance across all floors</p>
                 </div>
-                <p class="text-sm font-semibold text-red-500 mt-3 text-center flex items-center justify-center gap-2">
-                    <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <p class="text-sm font-semibold mt-3 text-center flex items-center justify-center gap-2" style="color: #ffffff; background: #ef4444; padding: 10px 16px; border-radius: 10px; border: 1px solid #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+                    <span class="inline-block w-2 h-2 rounded-full animate-pulse" style="background: #ffffff;"></span>
                     Click on a floor card below to view & input room attendance
                 </p>
                 <div id="floor-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 max-w-2xl mx-auto">
@@ -284,33 +316,35 @@
              </div>
         </div>
 
-        <div id="error-message" class="max-w-6xl mx-auto mt-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl hidden" role="alert">
-            <p class="font-bold">Error:</p>
-            <p id="error-text" class="text-sm"></p>
+        <div id="error-message" class="max-w-6xl mx-auto mt-6 p-4 rounded-xl hidden" role="alert" style="background: #fef2f2; border: 1px solid #fecaca; border-left: 3px solid #ef4444; color: #991b1b;">
+            <p class="font-bold" style="font-size: 0.9rem;">Error:</p>
+            <p id="error-text" class="text-sm" style="margin-top: 4px; opacity: 0.85;"></p>
         </div>
     </div>
-    <div id="activity-log-modal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
-            <div class="p-6 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-2xl font-bold text-gray-900">Activity Log</h2>
-                <button id="close-activity-log" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+    <div id="activity-log-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center z-50 hidden" style="background: rgba(15,23,42,0.5); backdrop-filter: blur(8px);">
+        <div class="max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col" style="background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); border-radius: 20px; box-shadow: 0 32px 64px -12px rgba(0,0,0,0.14), 0 0 0 1px rgba(255,255,255,0.6) inset; border: 1px solid rgba(0,0,0,0.06);">
+            <div class="p-6 flex justify-between items-center" style="border-bottom: 1px solid rgba(0,0,0,0.06);">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary, #1e293b); letter-spacing: -0.02em;">Activity Log</h2>
+                <button id="close-activity-log" class="text-2xl" style="color: var(--text-muted, #94a3b8); cursor:pointer; background:none; border:none; transition: color 0.2s;" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
             </div>
             <div class="p-6 space-y-4">
-                <div class="flex gap-4 flex-wrap">
+                <div class="flex gap-3 flex-wrap">
                     <input 
                         type="date" 
                         id="log-date-filter" 
-                        class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                        style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;"
+                        onfocus="this.style.borderColor='var(--theme-primary, #6366f1)';this.style.boxShadow='0 0 0 3px rgba(99,102,241,0.1)'"
+                        onblur="this.style.borderColor='var(--border-light, #e2e8f0)';this.style.boxShadow='none'"
                     />
                     <select 
                         id="log-user-filter" 
-                        class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                        style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;"
                     >
                         <option value="">All Users</option>
                     </select>
                     <select 
                         id="log-room-filter" 
-                        class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                        style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;"
                     >
                         <option value="">All Rooms</option>
                     </select>
@@ -356,6 +390,14 @@
             navigator.serviceWorker.register('/sw.js')
                 .then((registration) => {
                     console.log('SW registered:', registration.scope);
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
                 })
                 .catch((err) => {
                     console.log('SW registration failed:', err);
@@ -363,6 +405,20 @@
         });
     }
     </script>
+    <!-- Stats Counter Bar -->
+    <div class="stats-counter-bar">
+        <div class="stats-counter-inner">
+            <span class="stats-counter-item">
+                <span class="stats-dot stats-dot-views"></span>
+                <span>👀 Total Views: <strong id="stats-total-views">0</strong></span>
+            </span>
+            <span class="stats-counter-item">
+                <span class="stats-dot stats-dot-online"></span>
+                <span>👥 Online Now: <strong id="stats-online-now">0</strong></span>
+            </span>
+        </div>
+    </div>
+
     <footer class="app-footer-bar">
         <div class="footer-inner">
             <div class="footer-brand">
@@ -378,7 +434,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                 </a>
                 <a href="https://github.com/MueidShahriar" target="_blank" rel="noopener noreferrer" title="GitHub" class="footer-social-link">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#181717"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#e2e8f0"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
                 </a>
             </div>
             <div class="footer-divider"></div>
