@@ -1939,6 +1939,7 @@ async function handleRegister(e) {
             fullName: name,
             email: email,
             roomNumber: parseInt(roomNumber),
+            role: 'member',
             emailVerified: false,
             createdAt: new Date().toISOString()
         });
@@ -1970,12 +1971,14 @@ async function handleGoogleSignIn() {
                 showAuthAlert('Please enter a valid room number to continue', 'error');
                 return;
             }
+            const existingData = snapshot.exists() ? snapshot.val() : {};
             await set(userRef, {
                 fullName: user.displayName || 'User',
                 email: user.email,
                 roomNumber: parseInt(roomNumber),
+                role: existingData.role || 'member',
                 emailVerified: true,
-                createdAt: snapshot.exists() ? snapshot.val().createdAt : new Date().toISOString()
+                createdAt: existingData.createdAt || new Date().toISOString()
             });
         } else {
             await update(userRef, { emailVerified: true });
@@ -2083,8 +2086,7 @@ async function checkAuth() {
                         userRoomNumber = userData.roomNumber;
                         localStorage.setItem('userRoom', userData.roomNumber);
                     }
-                    const ADMIN_EMAILS = ['ahsanul.zim@gmail.com', 'mdmueidshahriar16@gmail.com'];
-                    if (ADMIN_EMAILS.includes(user.email?.toLowerCase())) {
+                    if (userData.role === 'admin') {
                         isAdmin = true;
                         localStorage.setItem('fas_is_admin', 'true');
                     } else {
