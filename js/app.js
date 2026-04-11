@@ -1120,13 +1120,19 @@ document.body.style.overflow = 'hidden'; // Lock scroll during loader
 function hidePreloader() {
     const loader = document.getElementById('page-loader');
     const appEl = document.getElementById('app');
+
     if (loader) {
         loader.classList.add('loaded');
         setTimeout(() => {
             loader.style.display = 'none';
         }, 500);
-        document.body.style.overflow = ''; document.documentElement.style.overflow = ''; document.documentElement.style.touchAction = ''; // Unlock scroll
     }
+
+    // Always unlock scroll
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.touchAction = '';
+
     if (appEl) {
         appEl.style.opacity = '1';
     }
@@ -1527,8 +1533,7 @@ function setupRealtimeListener(dateKey = null) {
     if (!db) return;
     if (!currentFloor) return;
     const viewDateKey = dateKey || currentViewDate;
-    const todayDateKey = getTodayDateKey();
-    isViewingToday = (viewDateKey === todayDateKey);
+    isViewingToday = (viewDateKey === getTodayDateKey());
     lastNotifiedTotal = 0;
     const floorOrdinal = getOrdinalSuffix(currentFloor);
     if (dateDisplay) {
