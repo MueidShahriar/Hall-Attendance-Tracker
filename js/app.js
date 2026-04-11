@@ -91,7 +91,7 @@ let isLoggedIn = false;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = (24 * 60);
+const ALLOWED_END_MINUTES = (22 * 60);
 
 const HALL_LATITUDE = 24.289462;
 const HALL_LONGITUDE = 89.008797;
@@ -871,31 +871,7 @@ function displayError(message) {
     }
 }
 async function loadActivityLog() {
-    if (!db) return [];
-    try {
-        const updatesRef = ref(db, 'room_updates');
-        const snapshot = await get(updatesRef);
-        if (!snapshot.exists()) return [];
-        const updates = snapshot.val() || {};
-        const entries = Object.entries(updates).map(([id, u]) => {
-            const rawTimestamp = u.timestamp || (Number.isFinite(Number(id)) ? new Date(Number(id)).toISOString() : '');
-            const dateKey = u.date || (rawTimestamp ? rawTimestamp.slice(0, 10) : getTodayDateKey());
-            const roomLabel = u.room ? `Room ${u.room}` : 'Room N/A';
-            const floorLabel = u.floor ? `Floor ${u.floor}` : 'Floor N/A';
-            const countLabel = (typeof u.count === 'number') ? `Count ${u.count}` : 'Count N/A';
-            return {
-                id,
-                user: u.name || u.email || 'Unknown',
-                action: 'update',
-                details: `${roomLabel} • ${floorLabel} • ${countLabel}`,
-                timestamp: rawTimestamp || new Date().toISOString(),
-                date: dateKey
-            };
-        }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        return entries.slice(0, 200);
-    } catch (error) {
-        return [];
-    }
+    return [];
 }
 async function showActivityLog() {
     if (!activityLogModal) return;
@@ -923,10 +899,6 @@ async function showActivityLog() {
         });
     }
     filterActivityLog();
-}
-function hideActivityLog() {
-    if (!activityLogModal) return;
-    activityLogModal.classList.add('hidden');
 }
 function filterActivityLog() {
     const dateFilter = logDateFilter ? logDateFilter.value : '';
@@ -968,27 +940,6 @@ function displayActivityLog(logs) {
             </div>
         `;
     }).join('');
-}
-const openActivityLogBtn = document.getElementById('open-activity-log');
-if (openActivityLogBtn) {
-    openActivityLogBtn.addEventListener('click', showActivityLog);
-}
-if (closeActivityLog) {
-    closeActivityLog.addEventListener('click', hideActivityLog);
-}
-if (activityLogModal) {
-    activityLogModal.addEventListener('click', (event) => {
-        if (event.target === activityLogModal) hideActivityLog();
-    });
-}
-if (logDateFilter) {
-    logDateFilter.addEventListener('change', filterActivityLog);
-}
-if (logUserFilter) {
-    logUserFilter.addEventListener('change', filterActivityLog);
-}
-if (logRoomFilter) {
-    logRoomFilter.addEventListener('change', filterActivityLog);
 }
 function showNotification(message, type = 'info', duration = 5000) {
     if (!notificationContainer) return;
@@ -1233,8 +1184,6 @@ async function initFCM() {
 
 async function requestFCMToken() {
     if (!fcmMessaging || !db || !userId || userId === 'system') return;
-    if (!('Notification' in window)) return;
-    if (!('serviceWorker' in navigator)) return;
     try {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
@@ -1371,15 +1320,6 @@ function renderRoomCard(roomNumber, currentCount) {
             existingCard.classList.add('other-room');
         } else {
             existingCard.classList.remove('other-room');
-        }
-        if (!isViewOnlyMode && isLoggedIn && geoLocationChecked) {
-            if (isWithinHallRadius) {
-                existingCard.classList.remove('geo-disabled');
-            } else {
-                existingCard.classList.add('geo-disabled');
-            }
-        } else {
-            existingCard.classList.remove('geo-disabled');
         }
         displayedCounts[roomNumber] = currentCount;
         return;
@@ -1586,10 +1526,6 @@ ALL_FLOORS.forEach(floor => {
 function setupRealtimeListener(dateKey = null) {
     if (!db) return;
     if (!currentFloor) return;
-    if (currentUnsubscribe) {
-        currentUnsubscribe();
-        currentUnsubscribe = null;
-    }
     const viewDateKey = dateKey || currentViewDate;
     const todayDateKey = getTodayDateKey();
     isViewingToday = (viewDateKey === todayDateKey);
@@ -1608,7 +1544,7 @@ function setupRealtimeListener(dateKey = null) {
         }
     }
     const attendanceRef = ref(db, `attendance/floor_${currentFloor}/${viewDateKey}`);
-    const unsubscribe = onValue(attendanceRef, (snapshot) => {
+    onValue(attendanceRef, (snapshot) => {
         if (loadingStatus) loadingStatus.classList.add('hidden');
         const data = snapshot.val() || {};
         if (Object.keys(data).length === 0 && isViewingToday) {
@@ -1657,7 +1593,6 @@ function setupRealtimeListener(dateKey = null) {
     }, (error) => {
         displayError(`Real-time listener failed: ${error.message}`);
     });
-    currentUnsubscribe = unsubscribe;
 }
 async function seedInitialRooms() {
     if (!db || !currentFloor) return;
@@ -2489,7 +2424,6 @@ function initNavbarButtons() {
     const overlay = document.getElementById('mobile-menu-overlay');
     const closeBtn = document.getElementById('mobile-menu-close');
     const mobileLogout = document.getElementById('mobile-menu-logout');
-    const mobileMenuPanel = document.getElementById('mobile-menu-panel');
 
     function openMobileMenu() {
         if (overlay) overlay.classList.add('active');
@@ -2516,7 +2450,7 @@ function initNavbarButtons() {
     }
     if (overlay) {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay || !mobileMenuPanel || !mobileMenuPanel.contains(e.target)) {
+            if (e.target === overlay || !document.getElementById('mobile-menu-panel').contains(e.target)) {
                 closeMobileMenu();
             }
         });
