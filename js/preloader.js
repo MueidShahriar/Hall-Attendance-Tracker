@@ -1,3 +1,16 @@
+const setViewportHeight = () => {
+    const height = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    document.documentElement.style.setProperty('--app-height', `${height}px`);
+};
+
+setViewportHeight();
+window.addEventListener('resize', setViewportHeight);
+window.addEventListener('orientationchange', setViewportHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setViewportHeight);
+    window.visualViewport.addEventListener('scroll', setViewportHeight);
+}
+
 const loadPreloader = () => {
     const placeholder = document.getElementById("preloader-placeholder");
     if (placeholder) {
