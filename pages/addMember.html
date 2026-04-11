@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Immediately lock scrolling to prevent preloader jank
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.style.touchAction = 'none';
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Add Member - Admin Panel</title>
+    <link rel="icon" type="image/png" href="../assets/images/hall.png">
+    <link rel="manifest" href="../pwa/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="preload" href="../assets/images/hall.png" as="image">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/pages.css">
+    <script src="https://cdn.tailwindcss.com" defer></script>
+</head>
+<body>
+    <div id="preloader-placeholder"></div>
+    
+
+    <div id="app" class="min-h-screen" style="opacity: 0; transition: opacity 0.4s ease;">
+        <div id="toast-container" class="toast-container"></div>
+
+        <nav class="app-navbar">
+            <div class="navbar-inner">
+                <div class="navbar-row-top">
+                    <a href="admin.html" class="navbar-brand" title="Admin Panel">
+                        <img src="../assets/images/hall.png" alt="Hall Logo" class="navbar-logo">
+                        <div class="navbar-title-group">
+                            <h1 class="navbar-title">Admin Panel</h1>
+                            <span class="navbar-subtitle">Add Member</span>
+                        </div>
+                    </a>
+                    <div class="navbar-quick-icons">
+                        <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+            <div class="mobile-menu-panel" id="mobile-menu-panel">
+                <div class="mobile-menu-header">
+                    <div class="mobile-menu-user" id="mobile-menu-user">
+                        <div class="mobile-menu-avatar" id="mobile-menu-avatar">A</div>
+                        <div>
+                            <div class="mobile-menu-name" id="mobile-menu-name">Admin</div>
+                            <div class="mobile-menu-email" id="mobile-menu-email"></div>
+                        </div>
+                    </div>
+                    <button class="mobile-menu-close" id="mobile-menu-close">&times;</button>
+                </div>
+                <nav class="mobile-menu-nav">
+                    <a href="../index.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
+                    <a href="profile.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="mobile-menu-item" id="mobile-menu-myfloor" style="display:none;">
+                        <span class="mobile-menu-icon">🏢</span>
+                        <span>My Floor</span>
+                    </a>
+                    <a href="admin.html" class="mobile-menu-item mobile-menu-item-active">
+                        <span class="mobile-menu-icon">🛡️</span>
+                        <span>Admin Panel</span>
+                    </a>
+                </nav>
+                <div class="mobile-menu-footer">
+                    <button id="mobile-menu-logout" class="mobile-menu-item mobile-menu-logout" style="display:none;">
+                        <span class="mobile-menu-icon"><img src="../assets/images/logout.png" alt="Logout" style="width:18px;height:18px;vertical-align:middle;"></span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <div id="access-denied" class="page-card text-center hidden" style="padding: 60px 20px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🔒</div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary, #1e293b); margin-bottom: 8px; letter-spacing: -0.02em;">Access Denied</h2>
+                <p style="color: var(--text-muted, #94a3b8); margin-bottom: 24px;">Only admins can access this panel.</p>
+                <a href="../index.html" class="page-btn page-btn-primary" style="display: inline-block; text-decoration: none;">Go to Dashboard</a>
+            </div>
+
+            <div id="admin-add-user" class="page-card hidden">
+                <div class="page-card-header">
+                    <h2 class="page-card-title">➕ Add Member</h2>
+                </div>
+                <div class="page-card-body">
+                    <form id="admin-add-user-form">
+                        <div class="admin-add-user-grid">
+                            <div class="form-row">
+                                <label class="form-label" for="admin-add-name">Full Name</label>
+                                <input type="text" id="admin-add-name" class="page-input" placeholder="Full name" required />
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label" for="admin-add-email">Email Address</label>
+                                <input type="email" id="admin-add-email" class="page-input" placeholder="name@gmail.com" required />
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label" for="admin-add-room">Room Number</label>
+                                <input type="number" id="admin-add-room" class="page-input" placeholder="e.g., 302" min="102" max="617" required />
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label" for="admin-add-gender">Gender</label>
+                                <select id="admin-add-gender" class="page-input">
+                                    <option value="Male" selected>Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label" for="admin-add-password">Temporary Password</label>
+                                <input type="password" id="admin-add-password" class="page-input" placeholder="Minimum 6 characters" minlength="6" required />
+                            </div>
+                        </div>
+                        <p style="font-size:12px;color:#64748b;margin: 4px 0 12px;">A verification email will be sent. Members can reset their password from the profile page.</p>
+                        <button type="submit" id="admin-add-user-btn" class="page-btn page-btn-primary">Create Member</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-counter-bar">
+            <div class="stats-counter-inner">
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-views"></span>
+                    <span>👀 Total Views: <strong id="stats-total-views">0</strong></span>
+                </span>
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-online"></span>
+                    <span>👥 Online Now: <strong id="stats-online-now">0</strong></span>
+                </span>
+            </div>
+        </div>
+
+        
+
+        </div>
+
+    <script>
+    (function() {
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const overlay = document.getElementById('mobile-menu-overlay');
+        const closeBtn = document.getElementById('mobile-menu-close');
+        function open() { overlay && overlay.classList.add('active'); hamburgerBtn && hamburgerBtn.classList.add('active'); document.body.style.overflow = 'hidden'; }
+        function close() { overlay && overlay.classList.remove('active'); hamburgerBtn && hamburgerBtn.classList.remove('active'); document.body.style.overflow = ''; }
+        hamburgerBtn && hamburgerBtn.addEventListener('click', () => overlay && overlay.classList.contains('active') ? close() : open());
+        closeBtn && closeBtn.addEventListener('click', close);
+        overlay && overlay.addEventListener('click', (e) => { if (e.target === overlay || !document.getElementById('mobile-menu-panel').contains(e.target)) close(); });
+    })();
+    </script>
+    <script type="module" src="../js/admin.js"></script>
+<script src="../js/globalState.js"></script>
+    <div id="footer-placeholder"></div>
+    <script src="../js/preloader.js"></script>
+    <script src="../js/footer.js"></script>
+</body>
+</html>

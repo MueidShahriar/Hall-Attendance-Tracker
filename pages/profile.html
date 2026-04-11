@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Immediately lock scrolling to prevent preloader jank
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.style.touchAction = 'none';
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>My Profile - Hall Attendance Tracker</title>
+    <link rel="icon" type="image/png" href="../assets/images/hall.png">
+    <link rel="manifest" href="../pwa/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="preload" href="../assets/images/hall.png" as="image">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/pages.css">
+    <script src="https://cdn.tailwindcss.com" defer></script>
+</head>
+<body>
+    <div id="preloader-placeholder"></div>
+    
+
+    <div id="app" class="min-h-screen" style="opacity: 0; transition: opacity 0.4s ease;">
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Navbar -->
+        <nav class="app-navbar">
+            <div class="navbar-inner">
+                <div class="navbar-row-top">
+                    <a href="../index.html" class="navbar-brand" title="Back to Dashboard">
+                        <img src="../assets/images/hall.png" alt="Hall Logo" class="navbar-logo">
+                        <div class="navbar-title-group">
+                            <h1 class="navbar-title">My Profile</h1>
+                            <span class="navbar-subtitle">Account Settings</span>
+                        </div>
+                    </a>
+                    <div class="navbar-quick-icons">
+                        <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+            <div class="mobile-menu-panel" id="mobile-menu-panel">
+                <div class="mobile-menu-header">
+                    <div class="mobile-menu-user" id="mobile-menu-user">
+                        <div class="mobile-menu-avatar" id="mobile-menu-avatar">U</div>
+                        <div>
+                            <div class="mobile-menu-name" id="mobile-menu-name">User</div>
+                            <div class="mobile-menu-email" id="mobile-menu-email"></div>
+                        </div>
+                    </div>
+                    <button class="mobile-menu-close" id="mobile-menu-close">&times;</button>
+                </div>
+                <nav class="mobile-menu-nav">
+                    <a href="../index.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
+                    <a href="profile.html" class="mobile-menu-item mobile-menu-item-active">
+                        <span class="mobile-menu-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="mobile-menu-item" id="mobile-menu-myfloor" style="display:none;">
+                        <span class="mobile-menu-icon">🏢</span>
+                        <span>My Floor</span>
+                    </a>
+                    <a href="admin.html" class="mobile-menu-item mobile-menu-admin" id="mobile-menu-admin" style="display:none;">
+                        <span class="mobile-menu-icon">🛡️</span>
+                        <span>Admin Panel</span>
+                    </a>
+                </nav>
+                <div class="mobile-menu-footer">
+                    <button id="mobile-menu-logout" class="mobile-menu-item mobile-menu-logout" style="display:none;">
+                        <span class="mobile-menu-icon"><img src="../assets/images/logout.png" alt="Logout" style="width:18px;height:18px;vertical-align:middle;"></span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <!-- Not logged in -->
+            <div id="not-logged-in" class="page-card text-center hidden" style="padding:60px 20px;">
+                <div style="font-size:64px; margin-bottom:16px;">🔒</div>
+                <h2 style="font-size:1.5rem; font-weight:700; color:var(--text-primary, #1e293b); margin-bottom:8px; letter-spacing:-0.02em;">Not Logged In</h2>
+                <p style="color:var(--text-muted, #94a3b8); margin-bottom:24px;">Please login to view your profile.</p>
+                <a href="../index.html" class="page-btn page-btn-primary" style="display:inline-block; text-decoration:none;">Go to Dashboard</a>
+            </div>
+
+            <!-- Profile Info Card -->
+            <div id="profile-card" class="page-card hidden">
+                <div class="page-card-header">
+                    <h2 class="page-card-title">👤 Profile Information</h2>
+                    <span id="profile-role-badge" class="user-role-badge user-role-member">MEMBER</span>
+                </div>
+                <div class="page-card-body">
+                    <div class="profile-avatar-row">
+                        <div class="profile-avatar-preview">
+                            <img id="profile-avatar-img" class="profile-avatar-img" alt="Profile photo" style="display:none;" />
+                            <div id="profile-avatar-fallback" class="profile-avatar-fallback">U</div>
+                        </div>
+                        <div class="profile-avatar-actions">
+                            <div class="profile-avatar-buttons">
+                                <button id="profile-avatar-upload-btn" class="page-btn page-btn-primary page-btn-sm" type="button">Upload Photo</button>
+                                <button id="profile-avatar-remove-btn" class="page-btn page-btn-sm profile-btn-muted" type="button">Remove</button>
+                            </div>
+                            <input type="file" id="profile-avatar-input" accept="image/*" style="display:none;" />
+                            <div class="profile-avatar-note">Images are compressed to 100 KB with reduced resolution.</div>
+                        </div>
+                    </div>
+                    <div class="profile-info-grid">
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Full Name</label>
+                            <div class="profile-info-value" id="profile-name">—</div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Email</label>
+                            <div class="profile-info-value" id="profile-email">—</div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Contact Number</label>
+                            <div class="profile-info-value profile-editable" id="profile-contact">
+                                <span class="profile-value-text">—</span>
+                                <button class="profile-edit-btn" title="Edit Contact Number">✏️</button>
+                            </div>
+                            <div class="profile-edit-form hidden" id="edit-contact-form">
+                                <input type="tel" class="page-input" id="edit-contact-input" placeholder="e.g., +8801XXXXXXXXX" />
+                                <div style="display:flex;gap:6px;margin-top:8px;">
+                                    <button class="page-btn page-btn-primary page-btn-sm" id="save-contact-btn">Save</button>
+                                    <button class="page-btn page-btn-sm" id="cancel-contact-btn" style="background:var(--bg-subtle,#f1f5f9);color:var(--text-secondary,#64748b);">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Room Number</label>
+                            <div class="profile-info-value" id="profile-room">—</div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Department</label>
+                            <div class="profile-info-value profile-editable" id="profile-department" data-field="department">
+                                <span class="profile-value-text">—</span>
+                                <button class="profile-edit-btn" title="Edit Department">✏️</button>
+                            </div>
+                            <div class="profile-edit-form hidden" id="edit-department-form">
+                                <select class="page-input" id="edit-department-input" style="flex:1;">
+                                    <option value="">Select Department</option>
+                                    <option value="CE">CE</option>
+                                    <option value="CSE">CSE</option>
+                                    <option value="EEE">EEE</option>
+                                    <option value="ICE">ICE</option>
+                                    <option value="ME">ME</option>
+                                    <option value="BBA">BBA</option>
+                                    <option value="ELL">ELL</option>
+                                    <option value="LLB">LLB</option>                      
+                                </select>
+                                <div style="display:flex;gap:6px;margin-top:8px;">
+                                    <button class="page-btn page-btn-primary page-btn-sm" id="save-department-btn">Save</button>
+                                    <button class="page-btn page-btn-sm" id="cancel-department-btn" style="background:var(--bg-subtle,#f1f5f9);color:var(--text-secondary,#64748b);">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Gender</label>
+                            <div class="profile-info-value profile-editable" id="profile-gender" data-field="gender">
+                                <span class="profile-value-text">—</span>                           
+                            </div>
+                            <div class="profile-edit-form hidden" id="edit-gender-form">
+                                <select class="page-input" id="edit-gender-input" style="flex:1;">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>                  
+                                </select>
+                                <div style="display:flex;gap:6px;margin-top:8px;">
+                                    <button class="page-btn page-btn-primary page-btn-sm" id="save-gender-btn">Save</button>
+                                    <button class="page-btn page-btn-sm" id="cancel-gender-btn" style="background:var(--bg-subtle,#f1f5f9);color:var(--text-secondary,#64748b);">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-info-item">
+                            <label class="profile-info-label">Joined</label>
+                            <div class="profile-info-value" id="profile-joined">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div id="password-card" class="page-card hidden">
+                <div class="page-card-header">
+                    <h2 class="page-card-title">🔑 Change Password</h2>
+                </div>
+                <div class="page-card-body">
+                    <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin-bottom:16px;">A password reset email will be sent to your registered email address.</p>
+                    <button id="send-reset-btn" class="page-btn page-btn-primary">
+                        📧 Send Password Reset Email
+                    </button>
+                </div>
+            </div>
+
+            <!-- Danger Zone (Delete Account) -->
+            <div id="danger-card" class="page-card hidden" style="border:1.5px solid #fecaca;">
+                <div class="page-card-header" style="background:linear-gradient(135deg, #fef2f2, #fee2e2);">
+                    <h2 class="page-card-title" style="color:#dc2626;">⚠️ Danger Zone</h2>
+                </div>
+                <div class="page-card-body">
+                    <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin-bottom:16px;">Deleting your account is permanent and cannot be undone. All your data will be removed.</p>
+                    <button id="delete-account-btn" class="page-btn page-btn-danger">
+                        🗑️ Delete My Account
+                    </button>
+                </div>
+            </div>
+
+            <!-- Attendance History -->
+            <div id="history-card" class="page-card hidden">
+                <div class="page-card-header">
+                    <h2 class="page-card-title">📊 My Attendance Updates</h2>
+                </div>
+                <div class="page-card-body">
+                    <div id="attendance-history-container">
+                        <div class="page-loading">
+                            <div class="page-spinner"></div>
+                            <span>Loading history...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Counter Bar -->
+        <div class="stats-counter-bar">
+            <div class="stats-counter-inner">
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-views"></span>
+                    <span>👀 Total Views: <strong id="stats-total-views">0</strong></span>
+                </span>
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-online"></span>
+                    <span>👥 Online Now: <strong id="stats-online-now">0</strong></span>
+                </span>
+            </div>
+        </div>
+
+        
+
+        </div>
+
+    <script>
+    (function() {
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const overlay = document.getElementById('mobile-menu-overlay');
+        const closeBtn = document.getElementById('mobile-menu-close');
+        function open() { overlay && overlay.classList.add('active'); hamburgerBtn && hamburgerBtn.classList.add('active'); document.body.style.overflow = 'hidden'; }
+        function close() { overlay && overlay.classList.remove('active'); hamburgerBtn && hamburgerBtn.classList.remove('active'); document.body.style.overflow = ''; }
+        hamburgerBtn && hamburgerBtn.addEventListener('click', () => overlay && overlay.classList.contains('active') ? close() : open());
+        closeBtn && closeBtn.addEventListener('click', close);
+        overlay && overlay.addEventListener('click', (e) => { if (e.target === overlay || !document.getElementById('mobile-menu-panel').contains(e.target)) close(); });
+    })();
+    </script>
+    <script type="module" src="../js/profile.js"></script>
+<script src="../js/globalState.js"></script>
+    <div id="footer-placeholder"></div>
+    <script src="../js/preloader.js"></script>
+    <script src="../js/footer.js"></script>
+</body>
+</html>

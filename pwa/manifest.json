@@ -1,0 +1,29 @@
+{
+    "name": "Hall Attendance Tracker",
+    "short_name": "Hall Tracker",
+    "description": "A complete real-time Progressive Web App (PWA) for monitoring and tracking hall student attendance across multiple floors and administrative panels.",
+    "start_url": "../index.html",
+    "display": "standalone",
+    "background_color": "#f8fafc",
+    "theme_color": "#6366f1",
+    "orientation": "portrait-primary",
+    "scope": "../",
+    "id": "hall-attendance-app-v2",
+    "icons": [
+        {
+            "src": "../assets/images/hall.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "../assets/images/hall.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["education", "productivity", "management"],
+    "lang": "en",
+    "dir": "ltr"
+}

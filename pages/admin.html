@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Immediately lock scrolling to prevent preloader jank
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.style.touchAction = 'none';
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Admin Panel - Hall Attendance Tracker</title>
+    <link rel="icon" type="image/png" href="../assets/images/hall.png">
+    <link rel="manifest" href="../pwa/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="preload" href="../assets/images/hall.png" as="image">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/pages.css">
+    <script src="https://cdn.tailwindcss.com" defer></script>
+</head>
+<body>
+    <div id="preloader-placeholder"></div>
+    
+
+    <div id="app" class="min-h-screen" style="opacity: 0; transition: opacity 0.4s ease;">
+        <!-- Toast Container -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Navbar -->
+        <nav class="app-navbar">
+            <div class="navbar-inner">
+                <div class="navbar-row-top">
+                    <a href="../index.html" class="navbar-brand" title="Back to Dashboard">
+                        <img src="../assets/images/hall.png" alt="Hall Logo" class="navbar-logo">
+                        <div class="navbar-title-group">
+                            <h1 class="navbar-title">Admin Panel</h1>
+                            <span class="navbar-subtitle">User Management</span>
+                        </div>
+                    </a>
+                    <div class="navbar-quick-icons">
+                        <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+            <div class="mobile-menu-panel" id="mobile-menu-panel">
+                <div class="mobile-menu-header">
+                    <div class="mobile-menu-user" id="mobile-menu-user">
+                        <div class="mobile-menu-avatar" id="mobile-menu-avatar">A</div>
+                        <div>
+                            <div class="mobile-menu-name" id="mobile-menu-name">Admin</div>
+                            <div class="mobile-menu-email" id="mobile-menu-email"></div>
+                        </div>
+                    </div>
+                    <button class="mobile-menu-close" id="mobile-menu-close">&times;</button>
+                </div>
+                <nav class="mobile-menu-nav">
+                    <a href="../index.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
+                    <a href="profile.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="mobile-menu-item" id="mobile-menu-myfloor" style="display:none;">
+                        <span class="mobile-menu-icon">🏢</span>
+                        <span>My Floor</span>
+                    </a>
+                    <a href="admin.html" class="mobile-menu-item mobile-menu-item-active">
+                        <span class="mobile-menu-icon">🛡️</span>
+                        <span>Admin Panel</span>
+                    </a>
+                </nav>
+                <div class="mobile-menu-footer">
+                    <button id="mobile-menu-logout" class="mobile-menu-item mobile-menu-logout" style="display:none;">
+                        <span class="mobile-menu-icon"><img src="../assets/images/logout.png" alt="Logout" style="width:18px;height:18px;vertical-align:middle;"></span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <!-- Access Denied -->
+            <div id="access-denied" class="page-card text-center hidden" style="padding: 60px 20px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🔒</div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary, #1e293b); margin-bottom: 8px; letter-spacing: -0.02em;">Access Denied</h2>
+                <p style="color: var(--text-muted, #94a3b8); margin-bottom: 24px;">Only admins can access this panel.</p>
+                <a href="../index.html" class="page-btn page-btn-primary" style="display: inline-block; text-decoration: none;">Go to Dashboard</a>
+            </div>
+
+            <!-- Module Navigation -->
+            <div id="admin-modules" class="page-card hidden">
+                <div class="page-card-header">
+                    <h2 class="page-card-title">🧩 Admin Modules</h2>
+                </div>
+                <div class="page-card-body">
+                    <div class="admin-module-nav">
+                        <a class="admin-module-chip" href="#admin-stats">📊 Stats</a>
+                        <a class="admin-module-chip" href="users.html">👥 Users</a>
+                        <a class="admin-module-chip" href="allAdmin.html">🛡️ Admins</a>
+                        <a class="admin-module-chip" href="addMember.html">➕ Add Member</a>
+                        <a class="admin-module-chip" href="announcement.html">📢 Announcements</a>
+                        <a class="admin-module-chip" href="roomUpdates.html">📝 Room Updates</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards (clickable to filter users) -->
+            <div id="admin-stats" class="admin-stats-grid hidden">
+                <div class="admin-stat-card admin-stat-clickable" data-filter="all" title="Click to show all users">
+                    <div class="admin-stat-icon">👥</div>
+                    <div class="admin-stat-value" id="stat-total-users">0</div>
+                    <div class="admin-stat-label">Total Users</div>
+                </div>
+                <div class="admin-stat-card admin-stat-clickable" data-filter="admin" title="Click to show admins">
+                    <div class="admin-stat-icon">🛡️</div>
+                    <div class="admin-stat-value" id="stat-admin-count">0</div>
+                    <div class="admin-stat-label">Admins</div>
+                </div>
+                <div class="admin-stat-card admin-stat-clickable" data-filter="verified" title="Click to show verified members">
+                    <div class="admin-stat-icon">✅</div>
+                    <div class="admin-stat-value" id="stat-verified-count">0</div>
+                    <div class="admin-stat-label">Verified</div>
+                </div>
+                <div class="admin-stat-card admin-stat-clickable" data-filter="unverified" title="Click to show unverified users">
+                    <div class="admin-stat-icon">⏳</div>
+                    <div class="admin-stat-value" id="stat-unverified-count">0</div>
+                    <div class="admin-stat-label">Unverified</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <!-- Stats Counter Bar -->
+        <div class="stats-counter-bar">
+            <div class="stats-counter-inner">
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-views"></span>
+                    <span>👀 Total Views: <strong id="stats-total-views">0</strong></span>
+                </span>
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-online"></span>
+                    <span>👥 Online Now: <strong id="stats-online-now">0</strong></span>
+                </span>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <script>
+    (function() {
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const overlay = document.getElementById('mobile-menu-overlay');
+        const closeBtn = document.getElementById('mobile-menu-close');
+        function open() { overlay && overlay.classList.add('active'); hamburgerBtn && hamburgerBtn.classList.add('active'); document.body.style.overflow = 'hidden'; }
+        function close() { overlay && overlay.classList.remove('active'); hamburgerBtn && hamburgerBtn.classList.remove('active'); document.body.style.overflow = ''; }
+        hamburgerBtn && hamburgerBtn.addEventListener('click', () => overlay && overlay.classList.contains('active') ? close() : open());
+        closeBtn && closeBtn.addEventListener('click', close);
+        overlay && overlay.addEventListener('click', (e) => { if (e.target === overlay || !document.getElementById('mobile-menu-panel').contains(e.target)) close(); });
+    })();
+    </script>
+    <script type="module" src="../js/admin.js"></script>
+<script src="../js/globalState.js"></script>
+    <div id="footer-placeholder"></div>
+    <script src="../js/preloader.js"></script>
+    <script src="../js/footer.js"></script>
+</body>
+</html>

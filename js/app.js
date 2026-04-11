@@ -1,0 +1,2617 @@
+// Mobile menu install app button logic (normal user & admin)
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileInstallBtn = document.getElementById('mobile-menu-install-app');
+    const mobileInstallBtnAdmin = document.getElementById('mobile-menu-install-app-admin');
+    // Show only if install prompt is available
+    function showInstallBtnForRole(isAdmin) {
+        if (isAdmin && mobileInstallBtnAdmin) {
+            mobileInstallBtnAdmin.style.display = '';
+            if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+        } else if (mobileInstallBtn) {
+            mobileInstallBtn.style.display = '';
+            if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
+        }
+    }
+    // Detect admin role (assume userRole is set globally or via auth)
+    let isAdmin = false;
+    if (typeof window.userRole !== 'undefined') {
+        isAdmin = window.userRole === 'admin';
+    } else if (window.location.href.includes('/pages/admin.html')) {
+        isAdmin = true;
+    }
+    if (window.deferredInstallPrompt) {
+        showInstallBtnForRole(isAdmin);
+    }
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredInstallPrompt = e;
+        showInstallBtnForRole(isAdmin);
+    });
+    window.addEventListener('appinstalled', () => {
+        window.deferredInstallPrompt = null;
+        if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+        if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
+    });
+    function handleInstallClick() {
+        if (window.deferredInstallPrompt) {
+            window.deferredInstallPrompt.prompt();
+            window.deferredInstallPrompt.userChoice.then((choice) => {
+                if (choice.outcome === 'accepted') {
+                    if (mobileInstallBtn) mobileInstallBtn.style.display = 'none';
+                    if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.style.display = 'none';
+                }
+                window.deferredInstallPrompt = null;
+            });
+        }
+    }
+    if (mobileInstallBtn) mobileInstallBtn.addEventListener('click', handleInstallClick);
+    if (mobileInstallBtnAdmin) mobileInstallBtnAdmin.addEventListener('click', handleInstallClick);
+});
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, update, get, remove, increment, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+import { 
+    getAuth, 
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    sendPasswordResetEmail,
+    sendEmailVerification,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'floor-attendance-system';
+const firebaseConfig = {
+    apiKey: "AIzaSyBYTnrnXjBCvlfEu2nDc0IVIZ_rtzlix9s",
+    authDomain: "floor-attendance-system.firebaseapp.com",
+    databaseURL: "https://floor-attendance-system-default-rtdb.firebaseio.com",
+    projectId: "floor-attendance-system",
+    storageBucket: "floor-attendance-system.firebasestorage.app",
+    messagingSenderId: "721240132639",
+    appId: "1:721240132639:web:629b90ae09d3fcbcc1d92a",
+    measurementId: "G-RZ8YDY6F4S"
+};
+let db;
+let userId = 'system';
+let userEmail = 'system@attendance.local';
+let userName = 'User';
+let currentViewDate = getTodayDateKey();
+let currentFloor = null;
+let isViewingToday = true;
+let lastNotifiedTotal = 0;
+const EMPTY_COUNT_EMOJI = '🚫';
+let notificationState = {
+    lastSlotKey: null
+};
+let activityLog = [];
+let displayedCounts = {};
+let currentUnsubscribe = null;
+let isLoggedIn = false;
+let isViewOnlyMode = false;
+const ALLOW_TIME_LIMIT = true;
+const ALLOWED_START_MINUTES = (18 * 60) + 30;
+const ALLOWED_END_MINUTES = (24 * 60);
+
+const HALL_LATITUDE = 24.289462;
+const HALL_LONGITUDE = 89.008797;
+const ALLOWED_RADIUS_METERS = 100;
+let isWithinHallRadius = false;
+let userLatitude = null;
+let userLongitude = null;
+let geoLocationChecked = false;
+let geoWatchId = null;
+function getRoomsForFloor(floorNumber) {
+    const baseRoom = floorNumber * 100 + 2;
+    const rooms = Array.from({ length: 16 }, (_, i) => baseRoom + i);
+    const excludedRooms = [
+        102, 103, 104, 105, 106, 116,
+        203,
+        502, 503, 504, 505,
+        602, 603, 604, 605
+    ];
+    return rooms.filter(room => !excludedRooms.includes(room));
+}
+let ROOMS = [];
+const ROOMS_PER_FLOOR = 16;
+const MAX_CAPACITY = ROOMS_PER_FLOOR * 6;
+let soundEnabled = localStorage.getItem('fas_sound') !== 'false';
+let audioContext;
+try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+}
+function playSound(type) {
+    if (!soundEnabled || !audioContext) return;
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        switch (type) {
+            case 'click':
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.1;
+                oscillator.type = 'sine';
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.05);
+                break;
+            case 'success':
+                oscillator.frequency.value = 523.25;
+                gainNode.gain.value = 0.15;
+                oscillator.type = 'sine';
+                oscillator.start();
+                setTimeout(() => { oscillator.frequency.value = 659.25; }, 100);
+                setTimeout(() => { oscillator.frequency.value = 783.99; }, 200);
+                oscillator.stop(audioContext.currentTime + 0.3);
+                break;
+            case 'celebration':
+                oscillator.frequency.value = 523.25;
+                gainNode.gain.value = 0.2;
+                oscillator.type = 'triangle';
+                oscillator.start();
+                setTimeout(() => { oscillator.frequency.value = 659.25; }, 100);
+                setTimeout(() => { oscillator.frequency.value = 783.99; }, 200);
+                setTimeout(() => { oscillator.frequency.value = 1046.50; }, 300);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                break;
+            case 'warning':
+                oscillator.frequency.value = 300;
+                gainNode.gain.value = 0.15;
+                oscillator.type = 'square';
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.15);
+                break;
+        }
+    } catch (e) {
+    }
+}
+const confettiCanvas = document.getElementById('confetti-canvas');
+const confettiCtx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
+let confettiParticles = [];
+let confettiAnimating = false;
+let hasShownFullConfetti = false;
+function resizeConfettiCanvas() {
+    if (confettiCanvas) {
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+    }
+}
+if (confettiCanvas) {
+    resizeConfettiCanvas();
+    window.addEventListener('resize', resizeConfettiCanvas);
+}
+function createConfettiParticle() {
+    const colors = ['#6366f1', '#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6'];
+    return {
+        x: Math.random() * confettiCanvas.width,
+        y: -20,
+        size: Math.random() * 10 + 5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speed: Math.random() * 3 + 2,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.2,
+        drift: (Math.random() - 0.5) * 2
+    };
+}
+function animateConfetti() {
+    if (!confettiAnimating || !confettiCtx) return;
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    confettiParticles.forEach((p, i) => {
+        p.y += p.speed;
+        p.x += p.drift;
+        p.angle += p.spin;
+        confettiCtx.save();
+        confettiCtx.translate(p.x, p.y);
+        confettiCtx.rotate(p.angle);
+        confettiCtx.fillStyle = p.color;
+        confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        confettiCtx.restore();
+        if (p.y > confettiCanvas.height + 20) {
+            confettiParticles.splice(i, 1);
+        }
+    });
+    if (confettiParticles.length > 0) {
+        requestAnimationFrame(animateConfetti);
+    } else {
+        confettiAnimating = false;
+    }
+}
+function launchConfetti() {
+    if (!confettiCanvas) return;
+    confettiParticles = [];
+    for (let i = 0; i < 150; i++) {
+        setTimeout(() => {
+            confettiParticles.push(createConfettiParticle());
+        }, i * 20);
+    }
+    confettiAnimating = true;
+    animateConfetti();
+    playSound('celebration');
+}
+let notificationPermission = 'default';
+async function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        notificationPermission = await Notification.requestPermission();
+    } else if ('Notification' in window) {
+        notificationPermission = Notification.permission;
+    }
+}
+function sendBrowserNotification(title, body) {
+    if ('Notification' in window && Notification.permission !== 'granted') return;
+    
+    // Use Service Worker notification for mobile notification bar support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) {
+                reg.showNotification(title, {
+                    body: body,
+                    icon: '/assets/images/hall.png',
+                    badge: '/assets/images/hall.png',
+                    tag: 'fas-notification',
+                    renotify: true,
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
+                    data: { url: '/index.html' }
+                });
+            } else {
+                // Fallback to basic Notification
+                new Notification(title, {
+                    body: body,
+                    icon: '/assets/images/hall.png',
+                    tag: 'fas-notification',
+                    renotify: true
+                });
+            }
+        }).catch(() => {
+            new Notification(title, {
+                body: body,
+                icon: '/assets/images/hall.png',
+                tag: 'fas-notification',
+                renotify: true
+            });
+        });
+    } else {
+        new Notification(title, {
+            body: body,
+            icon: '/assets/images/hall.png',
+            tag: 'fas-notification',
+            renotify: true
+        });
+    }
+}
+const countdownContainer = document.getElementById('navbar-countdown');
+const countdownTimer = document.getElementById('countdown-timer');
+const countdownStatus = document.getElementById('countdown-status');
+
+function initDraggableCountdown() {}
+initDraggableCountdown();
+function updateCountdown() {
+    if (!countdownContainer || !countdownTimer || !countdownStatus) return;
+    const now = new Date();
+    const minutes = getMinutesSinceMidnight(now);
+    if (minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES) {
+        const remainingMinutes = ALLOWED_END_MINUTES - minutes;
+        const hours = Math.floor(remainingMinutes / 60);
+        const mins = remainingMinutes % 60;
+        const secs = 59 - now.getSeconds();
+        countdownContainer.classList.remove('hidden');
+        countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        countdownStatus.textContent = 'remaining';
+        countdownContainer.classList.remove('countdown-urgent', 'countdown-waiting');
+        countdownContainer.classList.add('countdown-active');
+        if (remainingMinutes <= 15) {
+            countdownContainer.classList.remove('countdown-active');
+            countdownContainer.classList.add('countdown-urgent');
+        }
+    } else if (minutes < ALLOWED_START_MINUTES) {
+        const untilStartMinutes = ALLOWED_START_MINUTES - minutes;
+        const hours = Math.floor(untilStartMinutes / 60);
+        const mins = untilStartMinutes % 60;
+        const secs = 59 - now.getSeconds();
+        countdownContainer.classList.remove('hidden');
+        countdownTimer.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        countdownStatus.textContent = 'until open';
+        countdownContainer.classList.remove('countdown-active', 'countdown-urgent');
+        countdownContainer.classList.add('countdown-waiting');
+    } else {
+        countdownContainer.classList.remove('hidden');
+        countdownTimer.textContent = '00:00:00';
+        countdownStatus.textContent = 'closed';
+        countdownContainer.classList.remove('countdown-active', 'countdown-waiting');
+        countdownContainer.classList.add('countdown-urgent');
+    }
+}
+const roomSearch = document.getElementById('room-search');
+const clearSearchBtn = document.getElementById('clear-search');
+let activeRoomFilter = 'all';
+
+function filterRooms(searchTerm, statusFilter = null) {
+    const term = (searchTerm || '').trim().toLowerCase();
+    const filter = statusFilter !== null ? statusFilter : activeRoomFilter;
+
+    ROOMS.forEach(room => {
+        const card = document.getElementById(`room_${room}`);
+        if (!card) return;
+
+        let matchesSearch = true;
+        let matchesFilter = true;
+
+        if (term !== '' && !String(room).includes(term)) {
+            matchesSearch = false;
+        }
+
+        if (filter !== 'all') {
+            const count = displayedCounts[room];
+            switch (filter) {
+                case 'occupied':
+                    matchesFilter = count !== null && count !== undefined && count > 0;
+                    break;
+                case 'empty':
+                    matchesFilter = count === 0 || count === null || count === undefined;
+                    break;
+                case 'full':
+                    matchesFilter = count === 6;
+                    break;
+                case 'my-room':
+                    matchesFilter = userRoomNumber === room;
+                    break;
+            }
+        }
+
+        if (matchesSearch && matchesFilter) {
+            card.style.display = '';
+            card.classList.remove('room-hidden');
+        } else {
+            card.style.display = 'none';
+            card.classList.add('room-hidden');
+        }
+    });
+    if (clearSearchBtn) {
+        if (term !== '') {
+            clearSearchBtn.classList.remove('hidden');
+        } else {
+            clearSearchBtn.classList.add('hidden');
+        }
+    }
+}
+if (roomSearch) {
+    roomSearch.addEventListener('input', (e) => {
+        playSound('click');
+        filterRooms(e.target.value);
+    });
+}
+if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+        playSound('click');
+        if (roomSearch) roomSearch.value = '';
+        filterRooms('');
+    });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        playSound('click');
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn-active'));
+        btn.classList.add('filter-btn-active');
+        activeRoomFilter = btn.dataset.filter;
+        filterRooms(roomSearch ? roomSearch.value : '');
+    });
+});
+const colorPickerBtn = document.getElementById('color-picker-btn');
+const colorDropdown = document.getElementById('color-picker-dropdown');
+const colorOptions = document.querySelectorAll('.color-option');
+
+// 20 Royal Theme Colors - randomly applied on each refresh
+const royalThemeColors = [
+    { name: 'Royal Indigo',    primary: '#4338ca', secondary: '#3730a3', gradient: 'linear-gradient(135deg, #4338ca 0%, #3730a3 100%)' },
+    { name: 'Sapphire Blue',   primary: '#1d4ed8', secondary: '#1e40af', gradient: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)' },
+    { name: 'Emerald Crown',   primary: '#059669', secondary: '#047857', gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)' },
+    { name: 'Royal Purple',    primary: '#7c3aed', secondary: '#6d28d9', gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' },
+    { name: 'Crimson Velvet',  primary: '#dc2626', secondary: '#b91c1c', gradient: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' },
+    { name: 'Imperial Gold',   primary: '#d97706', secondary: '#b45309', gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' },
+    { name: 'Midnight Navy',   primary: '#1e3a5f', secondary: '#0f2744', gradient: 'linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%)' },
+    { name: 'Rose Quartz',     primary: '#e11d48', secondary: '#be123c', gradient: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' },
+    { name: 'Amethyst',        primary: '#9333ea', secondary: '#7e22ce', gradient: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)' },
+    { name: 'Teal Dynasty',    primary: '#0d9488', secondary: '#0f766e', gradient: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)' },
+    { name: 'Burgundy Wine',   primary: '#881337', secondary: '#701a2e', gradient: 'linear-gradient(135deg, #881337 0%, #701a2e 100%)' },
+    { name: 'Cobalt Royal',    primary: '#2563eb', secondary: '#1d4ed8', gradient: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' },
+    { name: 'Forest Jade',     primary: '#15803d', secondary: '#166534', gradient: 'linear-gradient(135deg, #15803d 0%, #166534 100%)' },
+    { name: 'Plum Majesty',    primary: '#a21caf', secondary: '#86198f', gradient: 'linear-gradient(135deg, #a21caf 0%, #86198f 100%)' },
+    { name: 'Slate Crown',     primary: '#475569', secondary: '#334155', gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)' },
+    { name: 'Ruby Regalia',    primary: '#be123c', secondary: '#9f1239', gradient: 'linear-gradient(135deg, #be123c 0%, #9f1239 100%)' },
+    { name: 'Ocean Monarch',   primary: '#0369a1', secondary: '#075985', gradient: 'linear-gradient(135deg, #0369a1 0%, #075985 100%)' },
+    { name: 'Bronze Imperial',  primary: '#92400e', secondary: '#78350f', gradient: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)' },
+    { name: 'Violet Throne',   primary: '#6d28d9', secondary: '#5b21b6', gradient: 'linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)' },
+    { name: 'Majestic Cyan',   primary: '#0891b2', secondary: '#0e7490', gradient: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }
+];
+
+// Pick a random royal theme on each page load
+function getRandomRoyalTheme() {
+    return royalThemeColors[Math.floor(Math.random() * royalThemeColors.length)];
+}
+
+function applyColorTheme(colorNameOrTheme) {
+    const theme = typeof colorNameOrTheme === 'object' ? colorNameOrTheme : getRandomRoyalTheme();
+    document.documentElement.style.setProperty('--theme-primary', theme.primary);
+    document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
+    document.documentElement.style.setProperty('--theme-gradient', theme.gradient);
+    const gradientCard = document.getElementById('total-attendance-card');
+    if (gradientCard) {
+        gradientCard.style.background = theme.gradient;
+    }
+    const totalHallCard = document.getElementById('total-hall-card');
+    if (totalHallCard) {
+        totalHallCard.style.background = theme.gradient;
+    }
+    document.querySelectorAll('.input-number').forEach(input => {
+        input.style.setProperty('--focus-color', theme.primary);
+    });
+}
+if (colorPickerBtn) {
+    colorPickerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSound('click');
+        // Apply a new random royal theme on click
+        const newTheme = getRandomRoyalTheme();
+        applyColorTheme(newTheme);
+    });
+}
+colorOptions.forEach(option => {
+    option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSound('success');
+        const newTheme = getRandomRoyalTheme();
+        applyColorTheme(newTheme);
+        if (colorDropdown) colorDropdown.classList.add('hidden');
+    });
+});
+document.addEventListener('click', () => {
+    if (colorDropdown) colorDropdown.classList.add('hidden');
+});
+const soundToggle = document.getElementById('sound-toggle');
+function updateSoundToggle() {
+    if (soundToggle) {
+        soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+        soundToggle.title = soundEnabled ? 'Sound On' : 'Sound Off';
+    }
+}
+if (soundToggle) {
+    soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('fas_sound', soundEnabled);
+        updateSoundToggle();
+        if (soundEnabled) playSound('click');
+    });
+}
+function getTodayDateKey() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+function formatDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+function formatDisplayDate(dateKey) {
+    const [year, month, day] = dateKey.split('-');
+    return `${day}/${month}/${year}`;
+}
+const DATA_RETENTION_DAYS = 20;
+async function cleanupOldData() {
+    if (!db) return;
+    const today = new Date();
+    const cutoffDate = new Date(today);
+    cutoffDate.setDate(today.getDate() - DATA_RETENTION_DAYS);
+    try {
+        for (const floor of ALL_FLOORS) {
+            const floorRef = ref(db, `attendance/floor_${floor}`);
+            const snapshot = await get(floorRef);
+            const floorData = snapshot.val();
+            if (floorData) {
+                for (const dateKey of Object.keys(floorData)) {
+                    const [year, month, day] = dateKey.split('-').map(Number);
+                    const recordDate = new Date(year, month - 1, day);
+                    if (recordDate < cutoffDate) {
+                        const dateRef = ref(db, `attendance/floor_${floor}/${dateKey}`);
+                        await remove(dateRef);
+                    }
+                }
+            }
+        }
+        const activityLogsRef = ref(db, 'activity_logs');
+        const activitySnapshot = await get(activityLogsRef);
+        const activityData = activitySnapshot.val();
+        if (activityData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const userId of Object.keys(activityData)) {
+                const userLogs = activityData[userId];
+                for (const timestamp of Object.keys(userLogs)) {
+                    if (parseInt(timestamp) < cutoffTimestamp) {
+                        const logRef = ref(db, `activity_logs/${userId}/${timestamp}`);
+                        await remove(logRef);
+                    }
+                }
+            }
+        }
+        const roomUpdatesRef = ref(db, 'room_updates');
+        const roomUpdatesSnapshot = await get(roomUpdatesRef);
+        const roomUpdatesData = roomUpdatesSnapshot.val();
+        if (roomUpdatesData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const timestamp of Object.keys(roomUpdatesData)) {
+                if (parseInt(timestamp) < cutoffTimestamp) {
+                    const updateRef = ref(db, `room_updates/${timestamp}`);
+                    await remove(updateRef);
+                }
+            }
+        }
+        const userLoginsRef = ref(db, 'user_logins');
+        const userLoginsSnapshot = await get(userLoginsRef);
+        const userLoginsData = userLoginsSnapshot.val();
+        if (userLoginsData) {
+            const cutoffTimestamp = cutoffDate.getTime();
+            for (const timestamp of Object.keys(userLoginsData)) {
+                if (parseInt(timestamp) < cutoffTimestamp) {
+                    const loginRef = ref(db, `user_logins/${timestamp}`);
+                    await remove(loginRef);
+                }
+            }
+        }
+    } catch (error) {
+    }
+}
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function updateLocationBanner(status, message) {
+    const banner = document.getElementById('geo-location-banner');
+    const bannerText = document.getElementById('geo-location-text');
+    const bannerIcon = document.getElementById('geo-location-icon');
+    if (!banner || !bannerText) return;
+    banner.className = 'geo-location-banner';
+    banner.classList.add(`geo-${status}`);
+    banner.classList.remove('hidden');
+    bannerText.textContent = message;
+    if (bannerIcon) {
+        bannerIcon.textContent = status === 'inside' ? '📍' : status === 'outside' ? '🚫' : status === 'error' ? '⚠️' : '📡';
+    }
+}
+
+function showGeoToast(message, type = 'error') {
+    const container = document.getElementById('geo-toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `geo-toast geo-toast-${type}`;
+    toast.innerHTML = `
+        <span class="geo-toast-icon">${type === 'error' ? '🚫' : type === 'success' ? '✅' : '📍'}</span>
+        <span class="geo-toast-message">${message}</span>
+        <button class="geo-toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'geoToastSlideOut 0.4s ease forwards';
+        setTimeout(() => toast.remove(), 400);
+    }, 6000);
+}
+
+function applyLocationGating() {
+    const allInputs = document.querySelectorAll('.input-number');
+    const roomCards = document.querySelectorAll('.room-card');
+    if (!isWithinHallRadius && geoLocationChecked && isLoggedIn && !isViewOnlyMode) {
+        allInputs.forEach(input => {
+            input.disabled = true;
+            input.style.opacity = '0.4';
+            input.style.cursor = 'not-allowed';
+            input.title = "You're outside the hall area. Attendance disabled.";
+        });
+        roomCards.forEach(card => {
+            card.classList.add('geo-disabled');
+        });
+    }
+}
+
+function requestLocationPermissionEarly() {
+    if (!navigator.geolocation) return;
+    const modal = document.getElementById('location-permission-modal');
+    const allowBtn = document.getElementById('location-allow-btn');
+    const denyBtn = document.getElementById('location-deny-btn');
+    
+    function triggerNativePrompt() {
+        if (modal) modal.classList.add('hidden');
+        navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+    
+    function showLocationModal() {
+        if (!modal) { triggerNativePrompt(); return; }
+        modal.classList.remove('hidden');
+        if (allowBtn) {
+            allowBtn.onclick = () => triggerNativePrompt();
+        }
+        if (denyBtn) {
+            denyBtn.onclick = () => {
+                modal.classList.add('hidden');
+                localStorage.setItem('fas_location_dismissed', Date.now().toString());
+            };
+        }
+    }
+    
+    // Don't show modal if user dismissed within last 24 hours
+    const dismissed = localStorage.getItem('fas_location_dismissed');
+    if (dismissed && Date.now() - parseInt(dismissed) < 86400000) return;
+    
+    if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(result => {
+            if (result.state === 'prompt') {
+                showLocationModal();
+            } else if (result.state === 'denied') {
+                // Already denied, don't bother
+            }
+            // If 'granted', no need to show modal
+        }).catch(() => {
+            showLocationModal();
+        });
+    } else {
+        showLocationModal();
+    }
+}
+
+function checkGeoLocation() {
+    if (!navigator.geolocation) {
+        geoLocationChecked = true;
+        isWithinHallRadius = false;
+        updateLocationBanner('error', 'Geolocation is not supported by your browser');
+        showGeoToast("Your browser doesn't support geolocation. Attendance disabled.", 'error');
+        applyLocationGating();
+        return;
+    }
+    updateLocationBanner('checking', 'Checking your location...');
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            const distance = haversineDistance(userLatitude, userLongitude, HALL_LATITUDE, HALL_LONGITUDE);
+            geoLocationChecked = true;
+            if (distance <= ALLOWED_RADIUS_METERS) {
+                isWithinHallRadius = true;
+                updateLocationBanner('inside', `You're inside the hall area (${Math.round(distance)}m away)`);
+                showGeoToast('Location verified! You can mark attendance.', 'success');
+            } else {
+                isWithinHallRadius = false;
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away - max ${ALLOWED_RADIUS_METERS}m)`);
+                showGeoToast("You're out of Hall", 'error');
+                applyLocationGating();
+            }
+            startGeoWatch();
+        },
+        (error) => {
+            geoLocationChecked = true;
+            isWithinHallRadius = false;
+            let errorMsg = 'Location access denied. Attendance disabled.';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg = 'Location permission denied. Please allow location access to mark attendance.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg = 'Location unavailable. Please check your GPS settings.';
+                    break;
+                case error.TIMEOUT:
+                    errorMsg = 'Location request timed out. Please try again.';
+                    break;
+            }
+            updateLocationBanner('error', errorMsg);
+            showGeoToast(errorMsg, 'error');
+            applyLocationGating();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+
+function startGeoWatch() {
+    if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            const distance = haversineDistance(userLatitude, userLongitude, HALL_LATITUDE, HALL_LONGITUDE);
+            const wasInside = isWithinHallRadius;
+            if (distance <= ALLOWED_RADIUS_METERS) {
+                isWithinHallRadius = true;
+                updateLocationBanner('inside', `You're inside the hall area (${Math.round(distance)}m away)`);
+                if (!wasInside) {
+                    showGeoToast('You entered the hall area. Attendance enabled!', 'success');
+                    if (currentFloor) {
+                        ROOMS.forEach(room => {
+                            const count = displayedCounts[room] ?? 0;
+                            renderRoomCard(room, count);
+                        });
+                    }
+                }
+            } else {
+                isWithinHallRadius = false;
+                updateLocationBanner('outside', `You're out of Hall (${Math.round(distance)}m away - max ${ALLOWED_RADIUS_METERS}m)`);
+                if (wasInside) {
+                    showGeoToast("You're out of Hall", 'error');
+                    applyLocationGating();
+                }
+            }
+        },
+        null,
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+}
+
+function getMinutesSinceMidnight(date = new Date()) {
+    return date.getHours() * 60 + date.getMinutes();
+}
+function isWithinAllowedTime() {
+    if (!ALLOW_TIME_LIMIT) return true;
+    const minutes = getMinutesSinceMidnight();
+    return minutes >= ALLOWED_START_MINUTES && minutes < ALLOWED_END_MINUTES;
+}
+function updateInputsBasedOnLogin() {
+    const allInputs = document.querySelectorAll('.input-number');
+    allInputs.forEach(input => {
+        if (isViewingToday && isWithinAllowedTime()) {
+            input.disabled = false;
+            input.style.opacity = '1';
+            input.style.cursor = 'text';
+            input.title = '';
+        }
+    });
+}
+function logActivity(action) {
+    if (!db) return;
+    const timestamp = new Date().toISOString();
+    const activityRef = ref(db, `activity_logs/${userId}/${Date.now()}`);
+    set(activityRef, {
+        user: userEmail,
+        name: userName,
+        action: action,
+        timestamp: timestamp
+    }).catch(() => {});
+}
+function logUserLogin() {
+    if (!db || !userEmail) return;
+    const timestamp = new Date().toISOString();
+    const loginRef = ref(db, `user_logins/${Date.now()}`);
+    set(loginRef, {
+        email: userEmail,
+        name: userName,
+        user_id: userId,
+        login_time: timestamp,
+        date: getTodayDateKey()
+    }).catch(() => {});
+}
+async function logRoomUpdate(roomNumber, floor, count) {
+    if (!db || !userEmail) return;
+    const timestamp = new Date().toISOString();
+    const emailKey = userEmail.replace(/[.#$[\]]/g, '_');
+    const updateRef = ref(db, `room_updates/${Date.now()}`);
+    await set(updateRef, {
+        email: userEmail,
+        name: userName,
+        user_id: userId,
+        room: roomNumber,
+        floor: floor,
+        count: count,
+        timestamp: timestamp,
+        date: getTodayDateKey()
+    }).catch(() => {});
+    const userStatsRef = ref(db, `user_stats/${emailKey}`);
+    try {
+        const snapshot = await get(userStatsRef);
+        const currentStats = snapshot.val() || { update_count: 0, rooms_updated: [] };
+        const newCount = (currentStats.update_count || 0) + 1;
+        await set(userStatsRef, {
+            email: userEmail,
+            name: userName,
+            update_count: newCount,
+            last_update: timestamp,
+            last_room: roomNumber,
+            last_floor: floor
+        });
+    } catch (err) {
+    }
+}
+const totalCountDisplay = document.getElementById('total-count-display');
+const roomGrid = document.getElementById('room-grid');
+const loadingStatus = document.getElementById('loading-status');
+const dateDisplay = document.getElementById('date-display');
+const errorDiv = document.getElementById('error-message');
+const errorText = document.getElementById('error-text');
+const datePicker = document.getElementById('date-picker');
+const todayBtn = document.getElementById('today-btn');
+const viewModeIndicator = document.getElementById('view-mode-indicator');
+const notificationContainer = document.getElementById('notification-container');
+const floorSelect = document.getElementById('floor-select');
+const roomContainer = document.getElementById('room-container');
+const noFloorMessage = document.getElementById('no-floor-message');
+const totalAttendanceCard = document.getElementById('total-attendance-card');
+const floorTitle = document.getElementById('floor-title');
+const roomSectionTitle = document.getElementById('room-section-title');
+const timeNote = document.getElementById('time-note');
+const totalHallCount = document.getElementById('total-hall-count');
+const ALL_FLOORS = [1, 2, 3, 4, 5, 6];
+const activityLogModal = document.getElementById('activity-log-modal');
+const closeActivityLog = document.getElementById('close-activity-log');
+const activityLogContent = document.getElementById('activity-log-content');
+const logDateFilter = document.getElementById('log-date-filter');
+const logUserFilter = document.getElementById('log-user-filter');
+const logRoomFilter = document.getElementById('log-room-filter');
+function displayError(message) {
+    const safeMessage = message || 'Something went wrong. Please try again.';
+    if (errorText) errorText.textContent = safeMessage;
+    if (errorDiv) {
+        errorDiv.classList.remove('hidden');
+        errorDiv.setAttribute('aria-live', 'assertive');
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (loadingStatus) loadingStatus.classList.add('hidden');
+    if (typeof showNotification === 'function') {
+        showNotification(safeMessage, 'error', 4000);
+    }
+}
+async function loadActivityLog() {
+    if (!db) return [];
+    try {
+        const updatesRef = ref(db, 'room_updates');
+        const snapshot = await get(updatesRef);
+        if (!snapshot.exists()) return [];
+        const updates = snapshot.val() || {};
+        const entries = Object.entries(updates).map(([id, u]) => {
+            const rawTimestamp = u.timestamp || (Number.isFinite(Number(id)) ? new Date(Number(id)).toISOString() : '');
+            const dateKey = u.date || (rawTimestamp ? rawTimestamp.slice(0, 10) : getTodayDateKey());
+            const roomLabel = u.room ? `Room ${u.room}` : 'Room N/A';
+            const floorLabel = u.floor ? `Floor ${u.floor}` : 'Floor N/A';
+            const countLabel = (typeof u.count === 'number') ? `Count ${u.count}` : 'Count N/A';
+            return {
+                id,
+                user: u.name || u.email || 'Unknown',
+                action: 'update',
+                details: `${roomLabel} • ${floorLabel} • ${countLabel}`,
+                timestamp: rawTimestamp || new Date().toISOString(),
+                date: dateKey
+            };
+        }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return entries.slice(0, 200);
+    } catch (error) {
+        return [];
+    }
+}
+async function showActivityLog() {
+    if (!activityLogModal) return;
+    activityLogModal.classList.remove('hidden');
+    if (activityLogContent) {
+        activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">Loading activity log...</p>';
+    }
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    if (logDateFilter) logDateFilter.value = `${year}-${month}-${day}`;
+    activityLog = await loadActivityLog();
+    const users = [...new Set(activityLog.map(log => log.user))];
+    if (logUserFilter) {
+        logUserFilter.innerHTML = '<option value="">All Users</option>';
+        users.forEach(user => {
+            logUserFilter.innerHTML += `<option value="${user}">${user}</option>`;
+        });
+    }
+    if (logRoomFilter) {
+        logRoomFilter.innerHTML = '<option value="">All Rooms</option>';
+        ROOMS.forEach(room => {
+            logRoomFilter.innerHTML += `<option value="${room}">Room ${room}</option>`;
+        });
+    }
+    filterActivityLog();
+}
+function hideActivityLog() {
+    if (!activityLogModal) return;
+    activityLogModal.classList.add('hidden');
+}
+function filterActivityLog() {
+    const dateFilter = logDateFilter ? logDateFilter.value : '';
+    const userFilter = logUserFilter ? logUserFilter.value : '';
+    const roomFilter = logRoomFilter ? logRoomFilter.value : '';
+    let filtered = activityLog;
+    if (dateFilter) {
+        filtered = filtered.filter(log => log.date === dateFilter);
+    }
+    if (userFilter) {
+        filtered = filtered.filter(log => log.user === userFilter);
+    }
+    if (roomFilter) {
+        filtered = filtered.filter(log =>
+            log.details && log.details.includes(`Room ${roomFilter}`)
+        );
+    }
+    displayActivityLog(filtered);
+}
+function displayActivityLog(logs) {
+    if (!activityLogContent) return;
+    if (logs.length === 0) {
+        activityLogContent.innerHTML = '<p class="text-center text-gray-500 py-8">No activity found for selected filters.</p>';
+        return;
+    }
+    activityLogContent.innerHTML = logs.map(log => {
+        const time = new Date(log.timestamp).toLocaleString();
+        const actionColor = log.action === 'update' ? 'text-blue-600' :
+            log.action === 'reset' ? 'text-red-600' : 'text-green-600';
+        return `
+            <div class="activity-log-item border border-gray-200 rounded-lg p-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <p class="font-semibold ${actionColor}">${log.action.toUpperCase()}</p>
+                        <p class="text-sm text-gray-700 mt-1">${log.details}</p>
+                        <p class="text-xs text-gray-500 mt-2">by <strong>${log.user}</strong> at ${time}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+const openActivityLogBtn = document.getElementById('open-activity-log');
+if (openActivityLogBtn) {
+    openActivityLogBtn.addEventListener('click', showActivityLog);
+}
+if (closeActivityLog) {
+    closeActivityLog.addEventListener('click', hideActivityLog);
+}
+if (activityLogModal) {
+    activityLogModal.addEventListener('click', (event) => {
+        if (event.target === activityLogModal) hideActivityLog();
+    });
+}
+if (logDateFilter) {
+    logDateFilter.addEventListener('change', filterActivityLog);
+}
+if (logUserFilter) {
+    logUserFilter.addEventListener('change', filterActivityLog);
+}
+if (logRoomFilter) {
+    logRoomFilter.addEventListener('change', filterActivityLog);
+}
+function showNotification(message, type = 'info', duration = 5000) {
+    if (!notificationContainer) return;
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type} text-white p-4 rounded-lg shadow-lg flex items-start gap-3`;
+    const icon = {
+        'info': 'ℹ️',
+        'warning': '⚠️',
+        'success': '✓',
+        'danger': '⚡'
+    }[type] || 'ℹ️';
+    notification.innerHTML = `
+        <span class="text-2xl">${icon}</span>
+        <div class="flex-1">
+            <p class="font-semibold text-sm">${message}</p>
+        </div>
+        <button class="text-white hover:text-gray-200 font-bold text-xl leading-none" onclick="this.parentElement.remove()">×</button>
+    `;
+    notificationContainer.appendChild(notification);
+    if (duration > 0) {
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease-out reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+    }
+}
+
+// ===== Toast Notification System =====
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌', danger: '🚨' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(toast);
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.add('toast-exit');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+}
+
+// ===== Firebase Retry Wrapper =====
+async function firebaseRetry(fn, maxRetries = 3, delay = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (attempt === maxRetries) {
+                showToast('Operation failed after retries. Please try again.', 'error');
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        }
+    }
+}
+
+// ===== Offline/Online Banner =====
+function setupOfflineBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    const updateBanner = () => {
+        if (navigator.onLine) {
+            banner.style.display = 'none';
+        } else {
+            banner.style.display = 'block';
+        }
+    };
+    window.addEventListener('online', () => {
+        updateBanner();
+        showToast('You\'re back online!', 'success', 3000);
+    });
+    window.addEventListener('offline', () => {
+        updateBanner();
+        showToast('You\'re offline. Some features may be limited.', 'warning', 5000);
+    });
+    updateBanner();
+}
+
+// ===== Dashboard Announcements =====
+function loadDashboardAnnouncements() {
+    if (!db) return;
+    const banner = document.getElementById('announcements-banner');
+    if (!banner) return;
+    // Only show announcements to logged-in users
+    if (!isLoggedIn) {
+        banner.style.display = 'none';
+        return;
+    }
+    const announcementsRef = ref(db, 'announcements');
+    onValue(announcementsRef, (snapshot) => {
+        if (!snapshot.exists()) {
+            banner.style.display = 'none';
+            return;
+        }
+        const announcements = snapshot.val();
+        const now = Date.now();
+        const entries = Object.entries(announcements)
+            .map(([id, data]) => ({ id, ...data }))
+            .filter(a => !a.expiresAt || a.expiresAt > now)
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        if (entries.length === 0) {
+            banner.style.display = 'none';
+            return;
+        }
+        const latest = entries[0];
+        const date = latest.createdAt ? new Date(latest.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const typeClass = latest.type ? `announcement-banner-${latest.type}` : 'announcement-banner-info';
+        banner.innerHTML = `
+            <div class="announcement-banner-item ${typeClass}">
+                <span>📢</span>
+                <div style="flex:1;">
+                    <div class="ann-title">${latest.title || 'Announcement'}</div>
+                    <div class="ann-message">${latest.message || ''}</div>
+                    <div class="ann-time">${date}</div>
+                </div>
+            </div>
+        `;
+        banner.style.display = 'flex';
+    }, { onlyOnce: false });
+}
+
+// ===== Navbar Menu Links =====
+function updateNavbarMenuLinks() {
+    const adminLink = document.getElementById('mobile-menu-admin');
+    const logoutItem = document.getElementById('mobile-menu-logout');
+    const myFloorLink = document.getElementById('mobile-menu-myfloor');
+    if (adminLink) {
+        adminLink.style.display = isAdmin ? 'flex' : 'none';
+    }
+    if (logoutItem) {
+        logoutItem.style.display = (isLoggedIn && !isViewOnlyMode) ? 'flex' : 'none';
+    }
+    if (myFloorLink && userRoomNumber) {
+        const floor = Math.floor(parseInt(userRoomNumber) / 100);
+        if (floor >= 1 && floor <= 6) {
+            myFloorLink.href = `/pages/floor.html?floor=${floor}`;
+            myFloorLink.style.display = 'flex';
+        }
+    }
+}
+
+function checkInputWindowAndNotify() {
+    const now = new Date();
+    const minutes = getMinutesSinceMidnight(now);
+    if (minutes < ALLOWED_START_MINUTES || minutes >= ALLOWED_END_MINUTES) {
+        notificationState.lastSlotKey = null;
+        return;
+    }
+    const elapsedMinutes = minutes - ALLOWED_START_MINUTES;
+    const slotIndex = Math.floor(elapsedMinutes / 60);
+    const slotStart = ALLOWED_START_MINUTES + (slotIndex * 60);
+    if (minutes >= slotStart && minutes < slotStart + 2) {
+        const slotKey = `${getTodayDateKey()}_${slotIndex}`;
+        if (notificationState.lastSlotKey !== slotKey) {
+            const isFirst = slotIndex === 0;
+            const toastMsg = isFirst
+                ? '🔔 Attendance window is now OPEN! Please update room attendance until 10:00 PM.'
+                : '⏰ Reminder: Attendance input window is still open. Please update your room attendance.';
+            const notifyTitle = isFirst ? '🔔 Attendance Window Open' : '⏰ Attendance Reminder';
+            const notifyBody = isFirst
+                ? 'Attendance input window is now OPEN! Please update your room attendance before 10:00 PM.'
+                : 'Reminder: Attendance input window is still open. Please update your room attendance.';
+            showNotification(toastMsg, isFirst ? 'info' : 'warning', 12000);
+            sendBrowserNotification(notifyTitle, notifyBody);
+            notificationState.lastSlotKey = slotKey;
+        }
+    }
+}
+document.body.style.overflow = 'hidden'; // Lock scroll during loader
+
+function hidePreloader() {
+    const loader = document.getElementById('page-loader');
+    const appEl = document.getElementById('app');
+    if (loader) {
+        loader.classList.add('loaded');
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 500);
+        document.body.style.overflow = ''; document.documentElement.style.overflow = ''; document.documentElement.style.touchAction = ''; // Unlock scroll
+    }
+    if (appEl) {
+        appEl.style.opacity = '1';
+    }
+}
+async function initializeFirebase() {
+    try {
+        if (Object.keys(firebaseConfig).length === 0) {
+            throw new Error("Firebase configuration is missing. Cannot initialize database.");
+        }
+        const app = initializeApp(firebaseConfig);
+        db = getDatabase(app);
+        try {
+            const analytics = getAnalytics(app);
+        } catch (e) {
+        }
+        if (loadingStatus) loadingStatus.textContent = 'Connected. Setting up real-time listener...';
+        setupRealtimeListener();
+        checkAndRunDailyReset();
+        cleanupOldData();
+        cleanupUnverifiedUsers();
+        setupTotalHallListener();
+    } catch (error) {
+        displayError(`Firebase Initialization failed: ${error.message}`);
+        hidePreloader();
+    }
+}
+
+let fcmMessaging = null;
+
+async function initFCM() {
+    try {
+        const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+        const firebaseApp = getApp();
+        fcmMessaging = getMessaging(firebaseApp);
+
+        onMessage(fcmMessaging, (payload) => {
+            const title = payload.notification?.title || 'Hall Attendance Update';
+            const body = payload.notification?.body || 'New attendance update';
+            showNotification(`🔔 ${title}: ${body}`, 'info', 8000);
+            
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: '/assets/images/hall.png',
+                    tag: 'fcm-notification',
+                    renotify: true
+                });
+            }
+        });
+
+    } catch (error) {
+        console.log('FCM init skipped:', error.message);
+    }
+}
+
+async function requestFCMToken() {
+    if (!fcmMessaging || !db || !userId || userId === 'system') return;
+    if (!('Notification' in window)) return;
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.log('Notification permission denied');
+            return;
+        }
+
+        const token = await getToken(fcmMessaging, {
+            vapidKey: firebaseConfig.messagingSenderId,
+            serviceWorkerRegistration: await navigator.serviceWorker.getRegistration()
+        });
+
+        if (token) {
+            const tokenRef = ref(db, `fcm_tokens/${userId}`);
+            await set(tokenRef, {
+                token: token,
+                email: userEmail,
+                name: userName,
+                updatedAt: new Date().toISOString(),
+                platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'
+            });
+            console.log('FCM token registered');
+        }
+    } catch (error) {
+        console.log('FCM token error:', error.message);
+    }
+}
+let totalHallUnsubscribe = null;
+function setupTotalHallListener() {
+    if (!db) return;
+    if (totalHallUnsubscribe) {
+        totalHallUnsubscribe();
+        totalHallUnsubscribe = null;
+    }
+    const attendanceRef = ref(db, `attendance`);
+    const unsubscribe = onValue(attendanceRef, (snapshot) => {
+        const viewDateKey = currentViewDate || getTodayDateKey();
+        const data = snapshot.val() || {};
+        let grandTotal = 0;
+        ALL_FLOORS.forEach(floor => {
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        grandTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+        });
+        if (totalHallCount) {
+            const oldTotal = parseInt(totalHallCount.textContent) || 0;
+            totalHallCount.textContent = grandTotal;
+            if (grandTotal !== oldTotal) {
+                totalHallCount.classList.remove('count-pop');
+                void totalHallCount.offsetWidth;
+                totalHallCount.classList.add('count-pop');
+            }
+        }
+        ALL_FLOORS.forEach(floor => {
+            let floorTotal = 0;
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        floorTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+            updateFloorCard(floor, floorTotal);
+        });
+    });
+    totalHallUnsubscribe = unsubscribe;
+}
+function updateFloorCard(floorNumber, count) {
+    const countEl = document.getElementById(`floor-count-${floorNumber}`);
+    const badgeEl = document.getElementById(`floor-badge-${floorNumber}`);
+    const cardEl = document.getElementById(`floor-card-${floorNumber}`);
+    if (countEl) {
+        const oldCount = parseInt(countEl.textContent) || 0;
+        countEl.textContent = count;
+        if (count !== oldCount) {
+            countEl.classList.remove('count-pop');
+            void countEl.offsetWidth;
+            countEl.classList.add('count-pop');
+        }
+    }
+    if (badgeEl) {
+        badgeEl.className = 'floor-badge';
+        if (count === 0) {
+            badgeEl.innerHTML = '<span class="floor-dot floor-dot-red"></span>';
+            badgeEl.classList.add('badge-empty');
+            if (cardEl) {
+                cardEl.classList.add('floor-empty');
+                cardEl.classList.remove('floor-active');
+            }
+        } else {
+            badgeEl.innerHTML = '<span class="floor-dot floor-dot-green"></span>';
+            badgeEl.classList.add('badge-active');
+            if (cardEl) {
+                cardEl.classList.remove('floor-empty');
+                cardEl.classList.add('floor-active');
+            }
+        }
+    }
+}
+function getRoomDisplayValue(count) {
+    if (count === null || count === undefined) return '';
+    if (count === 0) return EMPTY_COUNT_EMOJI;
+    return String(count);
+}
+function renderRoomCard(roomNumber, currentCount) {
+    const docId = `room_${roomNumber}`;
+    const existingCard = document.getElementById(docId);
+    const isUserRoom = userRoomNumber === roomNumber;
+    const canEditRoom = isAdmin || isUserRoom;
+    const isEditable = isViewingToday && (isAdmin || isWithinAllowedTime()) && isLoggedIn && canEditRoom && !isViewOnlyMode && (isAdmin || isWithinHallRadius || !geoLocationChecked);
+    const displayValue = getRoomDisplayValue(currentCount);
+    if (existingCard) {
+        const input = existingCard.querySelector('input');
+        if (input && document.activeElement !== input) {
+            input.value = displayValue;
+        }
+        updateRoomBadge(roomNumber, currentCount);
+        updateRoomProgress(roomNumber, currentCount);
+        if (input) {
+            input.disabled = !isEditable;
+            input.style.opacity = isEditable ? '1' : '0.5';
+            input.style.cursor = isEditable ? 'text' : 'not-allowed';
+            input.title = isViewOnlyMode ? 'View only mode - login to edit' : (!canEditRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+        }
+        if (!canEditRoom) {
+            existingCard.classList.add('other-room');
+        } else {
+            existingCard.classList.remove('other-room');
+        }
+        if (!isViewOnlyMode && isLoggedIn && geoLocationChecked) {
+            if (isWithinHallRadius) {
+                existingCard.classList.remove('geo-disabled');
+            } else {
+                existingCard.classList.add('geo-disabled');
+            }
+        } else {
+            existingCard.classList.remove('geo-disabled');
+        }
+        displayedCounts[roomNumber] = currentCount;
+        return;
+    }
+    const card = document.createElement('div');
+    card.id = docId;
+    const inputTitle = isViewOnlyMode ? 'View only mode - login to edit' : (!canEditRoom ? 'You can only edit your own room' : (!isLoggedIn ? 'Please login to input attendance' : ''));
+    card.className = `room-card p-5 rounded-2xl ${!canEditRoom ? 'other-room' : ''}`;
+    const roomLabel = isUserRoom && !isViewOnlyMode 
+        ? '<span class="room-label-badge bg-green-500">My Room</span>' 
+        : (isAdmin && !isViewOnlyMode 
+            ? '<span class="room-label-badge bg-amber-500">Admin</span>'
+            : '');
+    card.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+            <div class="text-lg font-bold text-gray-800 flex items-center gap-2">Room ${roomNumber} ${roomLabel}</div>
+            <div class="room-badge" id="badge-${roomNumber}">-</div>
+        </div>
+        <div class="text-sm text-gray-500 mb-2">Students Present:</div>
+        <div class="input-with-controls" style="display:flex;gap:8px;align-items:center;justify-content:center;">
+            <input
+                type="text"
+                inputmode="numeric"
+                id="input-${roomNumber}"
+                value="${displayValue}"
+                placeholder="${EMPTY_COUNT_EMOJI}"
+                class="input-number"
+                ${!isEditable ? 'disabled' : ''}
+                title="${inputTitle}"
+            />
+        </div>
+        <div class="mt-3">
+            <div class="progress-track" id="progress-${roomNumber}">
+                <div class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-label text-xs text-gray-500 mt-1" id="progress-label-${roomNumber}">-/6</div>
+        </div>
+    `;
+    const inputElement = card.querySelector(`#input-${roomNumber}`);
+    function sanitizeAndSave(val) {
+        if (isViewOnlyMode) {
+            showNotification('👁️ View only mode - please login to edit attendance', 'warning', 3000);
+            if (inputElement) inputElement.value = getRoomDisplayValue(displayedCounts[roomNumber]) || EMPTY_COUNT_EMOJI;
+            return;
+        }
+        if (!isLoggedIn) {
+            showNotification('🔒 Please login to input attendance', 'warning', 3000);
+            return;
+        }
+        if (!canEditRoom) {
+            showNotification('🔒 You can only edit your own room attendance', 'warning', 3000);
+            if (inputElement) inputElement.value = getRoomDisplayValue(displayedCounts[roomNumber]) || EMPTY_COUNT_EMOJI;
+            return;
+        }
+        const digits = String(val ?? '').replace(/\D/g, '');
+        let num = digits === '' ? 0 : parseInt(digits, 10);
+        if (isNaN(num) || num < 0) num = 0;
+        if (num > 6) {
+            showNotification('⚠️ Maximum 6 students allowed per room', 'warning', 2000);
+            if (inputElement) inputElement.value = getRoomDisplayValue(displayedCounts[roomNumber]) || EMPTY_COUNT_EMOJI;
+            return;
+        }
+        if (inputElement) inputElement.value = String(num);
+        updateAttendance(roomNumber, num);
+    }
+    if (isEditable && inputElement) {
+        inputElement.addEventListener('input', (event) => {
+            sanitizeAndSave(event.target.value);
+        });
+        inputElement.addEventListener('focus', (event) => {
+            if (inputElement.value === EMPTY_COUNT_EMOJI) {
+                inputElement.value = '0';
+            }
+            setTimeout(() => {
+                const len = inputElement.value.length;
+                inputElement.setSelectionRange(len, len);
+            }, 0);
+        });
+        inputElement.addEventListener('blur', () => {
+            const trimmed = inputElement.value.trim();
+            if (trimmed === '' || trimmed === '0') {
+                inputElement.value = EMPTY_COUNT_EMOJI;
+            }
+        });
+    } else if (inputElement) {
+        inputElement.style.opacity = '0.5';
+        inputElement.style.cursor = 'not-allowed';
+    }
+    updateRoomBadge(roomNumber, currentCount);
+    if (roomGrid) roomGrid.appendChild(card);
+}
+function renderInitialRooms() {
+    if (!roomGrid) return;
+    if (!currentFloor || ROOMS.length === 0) {
+        roomGrid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">Please select a floor first.</p>';
+        return;
+    }
+    roomGrid.innerHTML = '';
+    ROOMS.forEach(room => {
+        renderRoomCard(room, null);
+        displayedCounts[room] = null;
+    });
+    if (totalCountDisplay) {
+        totalCountDisplay.textContent = '0';
+    }
+}
+function calculateTotal(attendanceData) {
+    const total = attendanceData.reduce((sum, doc) => sum + (doc.present_count || 0), 0);
+    if (totalCountDisplay) totalCountDisplay.textContent = total;
+    animateTotalChange();
+    if (isViewingToday) {
+        checkCapacityAndNotify(total);
+    }
+}
+function getOrdinalSuffix(num) {
+    const n = parseInt(num);
+    if (n === 1) return '1st';
+    if (n === 2) return '2nd';
+    if (n === 3) return '3rd';
+    return n + 'th';
+}
+function selectFloor(floorNumber) {
+    if (!floorNumber) return;
+    currentFloor = parseInt(floorNumber);
+    ROOMS = getRoomsForFloor(currentFloor);
+    displayedCounts = {};
+    const floorOrdinal = getOrdinalSuffix(currentFloor);
+    ALL_FLOORS.forEach(f => {
+        const fc = document.getElementById(`floor-card-${f}`);
+        if (fc) fc.classList.remove('floor-selected');
+    });
+    const selectedCard = document.getElementById(`floor-card-${currentFloor}`);
+    if (selectedCard) selectedCard.classList.add('floor-selected');
+
+    if (noFloorMessage && !noFloorMessage.classList.contains('hidden')) {
+        noFloorMessage.classList.add('page-transition-exit');
+        setTimeout(() => {
+            noFloorMessage.classList.add('hidden');
+            noFloorMessage.classList.remove('page-transition-exit');
+
+            if (totalAttendanceCard) {
+                totalAttendanceCard.classList.remove('hidden');
+                totalAttendanceCard.classList.add('page-fade-enter');
+                setTimeout(() => totalAttendanceCard.classList.remove('page-fade-enter'), 350);
+            }
+            if (roomContainer) {
+                roomContainer.classList.remove('hidden');
+                roomContainer.classList.add('page-transition-enter');
+                setTimeout(() => roomContainer.classList.remove('page-transition-enter'), 400);
+            }
+        }, 250);
+    } else {
+        if (noFloorMessage) noFloorMessage.classList.add('hidden');
+        if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
+        if (roomContainer) roomContainer.classList.remove('hidden');
+    }
+
+    if (loadingStatus) loadingStatus.classList.remove('hidden');
+    if (timeNote) timeNote.classList.remove('hidden');
+    if (floorTitle) {
+        floorTitle.textContent = `Total Students Present on ${floorOrdinal} Floor`;
+    }
+    if (roomSectionTitle) {
+        roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance Inputs`;
+    }
+    localStorage.setItem('fas_selected_floor', currentFloor);
+
+    // Check if we're on the floor page
+    const isOnFloorPage = window.location.pathname.includes('/pages/floor.html');
+    if (!isOnFloorPage) {
+        // On home page, navigate to floor page
+        window.location.href = `/pages/floor.html?floor=${currentFloor}`;
+        return;
+    }
+
+    renderInitialRooms();
+    setupRealtimeListener(currentViewDate);
+    updateNavbarForFloorView();
+    updateViewingInfo();
+    playSound('success');
+    showNotification(`Switched to ${floorOrdinal} Floor`, 'info', 2500);
+
+    setTimeout(() => {
+        const cards = document.querySelectorAll('.room-card');
+        cards.forEach((card, index) => {
+            card.classList.add('room-card-animate');
+            card.style.animationDelay = `${index * 40}ms`;
+        });
+    }, 300);
+}
+if (floorSelect) {
+    floorSelect.addEventListener('change', (e) => {
+        selectFloor(e.target.value);
+    });
+}
+ALL_FLOORS.forEach(floor => {
+    const card = document.getElementById(`floor-card-${floor}`);
+    if (card) {
+        card.addEventListener('click', () => {
+            window.location.href = `/pages/floor.html?floor=${floor}`;
+        });
+    }
+});
+function setupRealtimeListener(dateKey = null) {
+    if (!db) return;
+    if (!currentFloor) return;
+    if (currentUnsubscribe) {
+        currentUnsubscribe();
+        currentUnsubscribe = null;
+    }
+    const viewDateKey = dateKey || currentViewDate;
+    const todayDateKey = getTodayDateKey();
+    isViewingToday = (viewDateKey === todayDateKey);
+    lastNotifiedTotal = 0;
+    const floorOrdinal = getOrdinalSuffix(currentFloor);
+    if (dateDisplay) {
+        dateDisplay.innerHTML = `Viewing: <strong>${floorOrdinal} Floor</strong> | Date: <strong>${formatDisplayDate(viewDateKey)}</strong>`;
+    }
+    if (viewModeIndicator) {
+        if (isViewingToday) {
+            viewModeIndicator.innerHTML = '<strong>Live View</strong> - Data updates in real-time';
+            viewModeIndicator.className = 'text-xs text-center mt-3 text-green-600 font-medium';
+        } else {
+            viewModeIndicator.innerHTML = '<strong>Historical View</strong> - Read-only mode';
+            viewModeIndicator.className = 'text-xs text-center mt-3 text-blue-600 font-medium';
+        }
+    }
+    const attendanceRef = ref(db, `attendance/floor_${currentFloor}/${viewDateKey}`);
+    const unsubscribe = onValue(attendanceRef, (snapshot) => {
+        if (loadingStatus) loadingStatus.classList.add('hidden');
+        const data = snapshot.val() || {};
+        if (Object.keys(data).length === 0 && isViewingToday) {
+            seedInitialRooms();
+        } else if (Object.keys(data).length === 0) {
+            if (roomGrid) {
+                roomGrid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">No attendance records found for this date.</p>';
+            }
+            if (totalCountDisplay) totalCountDisplay.textContent = '0';
+            return;
+        }
+        const newTotals = [];
+        ROOMS.forEach(room => {
+            const roomKey = `room_${room}`;
+            const roomData = data[roomKey];
+            const presentCount = roomData && typeof roomData.present_count === 'number' ? roomData.present_count : null;
+            if (presentCount !== null && presentCount >= 1) {
+                newTotals.push(presentCount);
+            }
+            const existing = document.getElementById(`room_${room}`);
+            const prev = displayedCounts[room];
+            if (!existing) {
+                renderRoomCard(room, presentCount);
+                setTimeout(() => updateRoomProgress(room, presentCount), 50);
+                displayedCounts[room] = presentCount;
+                return;
+            }
+            if (prev !== presentCount) {
+                const inputEl = existing.querySelector(`#input-${room}`);
+                const displayValue = getRoomDisplayValue(presentCount);
+                if (inputEl && document.activeElement !== inputEl) {
+                    inputEl.value = displayValue || EMPTY_COUNT_EMOJI;
+                }
+                updateRoomBadge(room, presentCount);
+                updateRoomProgress(room, presentCount);
+                displayedCounts[room] = presentCount;
+            }
+        });
+        const newTotal = newTotals.reduce((s, v) => s + (v || 0), 0);
+        const oldTotal = totalCountDisplay ? parseInt(totalCountDisplay.textContent) || 0 : 0;
+        if (newTotal !== oldTotal) {
+            if (totalCountDisplay) totalCountDisplay.textContent = newTotal;
+            animateTotalChange();
+            if (isViewingToday) checkCapacityAndNotify(newTotal);
+        }
+    }, (error) => {
+        displayError(`Real-time listener failed: ${error.message}`);
+    });
+    currentUnsubscribe = unsubscribe;
+}
+async function seedInitialRooms() {
+    if (!db || !currentFloor) return;
+    const todayDateKey = getTodayDateKey();
+    const updates = {};
+    ROOMS.forEach(room => {
+        const roomKey = `room_${room}`;
+        updates[`attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`] = {
+            room: room,
+            floor: currentFloor,
+            present_count: 0,
+            timestamp: new Date().toISOString(),
+            date: todayDateKey
+        };
+    });
+    try {
+        await update(ref(db), updates);
+    } catch (error) {
+        displayError(`Failed to initialize database: ${error.message}`);
+    }
+}
+async function clearAllAttendance(isManual = false) {
+    if (!db) {
+        if (isManual) displayError("Database not initialized. Please wait.");
+        return;
+    }
+    if (!currentFloor) return;
+    if (errorDiv) errorDiv.classList.add('hidden');
+    if (loadingStatus) loadingStatus.textContent = 'Auto-reset in progress...';
+    try {
+        const todayDateKey = getTodayDateKey();
+        const updates = {};
+        ROOMS.forEach(room => {
+            const roomKey = `room_${room}`;
+            updates[`attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`] = {
+                room: room,
+                floor: currentFloor,
+                present_count: 0,
+                timestamp: new Date().toISOString()
+            };
+        });
+        updates['reset_tracker/last_reset'] = new Date().toISOString();
+        await update(ref(db), updates);
+    } catch (error) {
+        displayError(`Failed to complete automatic reset: ${error.message}`);
+    } finally {
+        if (loadingStatus) loadingStatus.textContent = 'Database loaded and real-time listener active.';
+    }
+}
+async function checkAndRunDailyReset() {
+    if (!db) return;
+    const now = new Date();
+    const targetResetTimeToday = new Date();
+    targetResetTimeToday.setHours(18, 0, 0, 0);
+    if (now.getTime() < targetResetTimeToday.getTime()) {
+        return;
+    }
+    const resetRef = ref(db, 'reset_tracker/last_reset');
+    try {
+        const snapshot = await get(resetRef);
+        const lastResetTimestamp = snapshot.exists() ? snapshot.val() : null;
+        let lastResetTime = null;
+        if (lastResetTimestamp) {
+            lastResetTime = new Date(lastResetTimestamp);
+        }
+        const resetAlreadyDone = lastResetTime && lastResetTime.getTime() > targetResetTimeToday.getTime();
+        if (!resetAlreadyDone) {
+            await clearAllAttendance(false);
+        } else {
+        }
+    } catch (error) {
+    }
+}
+async function updateAttendance(roomNumber, value) {
+    if (!db || !currentFloor) return;
+    if (!isLoggedIn) {
+        showNotification('🔒 Please login to input attendance', 'warning', 3000);
+        return;
+    }
+    if (!isAdmin && geoLocationChecked && !isWithinHallRadius) {
+        showGeoToast("You're out of Hall", 'error');
+        return;
+    }
+    if (!isAdmin && !isWithinAllowedTime()) {
+        displayError('Attendance can only be updated between 06:30 PM to 10:00 PM.');
+        return;
+    }
+    let count = parseInt(value);
+    if (isNaN(count) || count < 0) {
+        count = 0;
+    }
+    if (count > 6) {
+        displayError('Maximum 6 students allowed per room.');
+        count = 6;
+        const inputElement = document.getElementById(`input-${roomNumber}`);
+        if (inputElement) inputElement.value = 6;
+    }
+    const todayDateKey = getTodayDateKey();
+    const roomKey = `room_${roomNumber}`;
+    const roomRef = ref(db, `attendance/floor_${currentFloor}/${todayDateKey}/${roomKey}`);
+    try {
+        await set(roomRef, {
+            room: roomNumber,
+            floor: currentFloor,
+            present_count: count,
+            timestamp: new Date().toISOString(),
+            updated_by: userEmail
+        });
+        await logRoomUpdate(roomNumber, currentFloor, count);
+        const msg = count === 0
+            ? `🚫 Room ${roomNumber} marked as empty - No one in hall`
+            : `Thank you ${userName} - Room ${roomNumber} updated (${count})`;
+        showNotification(msg, 'success', 2500);
+        playSound('success');
+        try {
+            updateRoomBadge(roomNumber, count);
+            updateRoomProgress(roomNumber, count);
+            const inputEl = document.getElementById(`input-${roomNumber}`);
+            if (inputEl && count === 0) inputEl.value = EMPTY_COUNT_EMOJI;
+            if (inputEl) {
+                inputEl.classList.add('input-saved');
+                setTimeout(() => inputEl.classList.remove('input-saved'), 900);
+            }
+        } catch (e) {
+        }
+    } catch (error) {
+        displayError(`Failed to update attendance for Room ${roomNumber}: ${error.message}`);
+    }
+}
+function setDatePickerToToday() {
+    if (!datePicker) return;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    datePicker.value = `${year}-${month}-${day}`;
+}
+function initializeDatePicker() {
+    setDatePickerToToday();
+    if (datePicker) {
+        datePicker.addEventListener('change', (event) => {
+            const selectedDate = new Date(event.target.value + 'T00:00:00');
+            currentViewDate = formatDateKey(selectedDate);
+            localStorage.setItem('fas_selected_date', currentViewDate);
+            updateTotalForDate();
+            updateViewingInfo();
+            if (currentFloor) {
+                renderInitialRooms();
+                setupRealtimeListener(currentViewDate);
+            }
+            if (errorDiv) errorDiv.classList.add('hidden');
+        });
+    }
+    if (todayBtn) {
+        todayBtn.addEventListener('click', () => {
+            setDatePickerToToday();
+            currentViewDate = getTodayDateKey();
+            localStorage.setItem('fas_selected_date', currentViewDate);
+            updateTotalForDate();
+            updateViewingInfo();
+            if (currentFloor) {
+                renderInitialRooms();
+                setupRealtimeListener(currentViewDate);
+            }
+            if (errorDiv) errorDiv.classList.add('hidden');
+        });
+    }
+}
+async function updateTotalForDate() {
+    if (!db) return;
+    const viewDateKey = currentViewDate || getTodayDateKey();
+    try {
+        const attendanceRef = ref(db, `attendance`);
+        const snapshot = await get(attendanceRef);
+        const data = snapshot.val() || {};
+        let grandTotal = 0;
+        ALL_FLOORS.forEach(floor => {
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        grandTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+        });
+        if (totalHallCount) {
+            const oldTotal = parseInt(totalHallCount.textContent) || 0;
+            totalHallCount.textContent = grandTotal;
+            if (grandTotal !== oldTotal) {
+                totalHallCount.classList.remove('count-pop');
+                void totalHallCount.offsetWidth;
+                totalHallCount.classList.add('count-pop');
+            }
+        }
+        ALL_FLOORS.forEach(floor => {
+            let floorTotal = 0;
+            const floorData = data[`floor_${floor}`];
+            if (floorData && floorData[viewDateKey]) {
+                const dateData = floorData[viewDateKey];
+                Object.keys(dateData).forEach(roomKey => {
+                    if (dateData[roomKey] && typeof dateData[roomKey].present_count === 'number' && dateData[roomKey].present_count >= 1) {
+                        floorTotal += dateData[roomKey].present_count;
+                    }
+                });
+            }
+            updateFloorCard(floor, floorTotal);
+        });
+    } catch (error) {
+    }
+}
+function updateRoomBadge(roomNumber, count) {
+    const badge = document.getElementById(`badge-${roomNumber}`);
+    const card = document.getElementById(`room_${roomNumber}`);
+    if (!badge) return;
+    badge.className = 'room-badge';
+    badge.style.display = 'none';
+    if (card) {
+        card.classList.remove('room-empty', 'room-no-one', 'room-active');
+    }
+    if (count === null || count === undefined) {
+    } else if (count === 0) {
+        if (card) card.classList.add('room-no-one');
+    } else if (count >= 1 && count <= 6) {
+        if (card) card.classList.add('room-active');
+    }
+}
+function updateRoomProgress(roomNumber, count) {
+    const track = document.getElementById(`progress-${roomNumber}`);
+    const label = document.getElementById(`progress-label-${roomNumber}`);
+    const card = document.getElementById(`room_${roomNumber}`);
+    if (!track || !label) return;
+    const capacity = 6;
+    const actualCount = (count === null || count === undefined) ? 0 : count;
+    const percent = Math.min(100, Math.round((actualCount / capacity) * 100));
+    const displayLabel = (count === null || count === undefined) ? '0' : actualCount;
+    const fill = track.querySelector('.progress-fill');
+    if (fill) {
+        fill.style.width = percent + '%';
+        fill.setAttribute('aria-valuenow', actualCount);
+        if (actualCount >= capacity) {
+            fill.classList.add('full');
+            if (card) card.classList.add('room-full');
+        } else {
+            fill.classList.remove('full');
+            if (card) card.classList.remove('room-full');
+        }
+    }
+    label.textContent = `${displayLabel}/${capacity}`;
+}
+function animateTotalChange() {
+    const el = document.getElementById('total-count-display');
+    if (!el) return;
+    el.classList.remove('count-pop');
+    void el.offsetWidth;
+    el.classList.add('count-pop');
+}
+function getInitials(name) {
+    if (!name) return '👤';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+let userRoomNumber = null;
+let isAdmin = false;
+let authModal, authLoginForm, authRegisterForm, authForgotForm;
+let authLoginTabBtn, authRegisterTabBtn, authAlertBox, authForgotPasswordLink, authBackToLoginBtn;
+let authTabContainer;
+let firebaseAuth;
+function initAuthModal() {
+    authModal = document.getElementById('auth-modal');
+    authLoginForm = document.getElementById('auth-login-form');
+    authRegisterForm = document.getElementById('auth-register-form');
+    authForgotForm = document.getElementById('auth-forgot-form');
+    authLoginTabBtn = document.getElementById('auth-login-tab-btn');
+    authRegisterTabBtn = document.getElementById('auth-register-tab-btn');
+    authAlertBox = document.getElementById('auth-alert-box');
+    authForgotPasswordLink = document.getElementById('auth-forgot-password-link');
+    authBackToLoginBtn = document.getElementById('auth-back-to-login');
+    authTabContainer = document.querySelector('.auth-tab-container');
+    if (!authModal) return;
+    authLoginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
+    authRegisterTabBtn?.addEventListener('click', () => switchAuthTab('register'));
+    authForgotPasswordLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthTab('forgot');
+    });
+    authBackToLoginBtn?.addEventListener('click', () => switchAuthTab('login'));
+    document.querySelectorAll('.auth-password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
+            }
+        });
+    });
+    document.getElementById('auth-continue-without-login')?.addEventListener('click', () => {
+        isViewOnlyMode = true;
+        isLoggedIn = false;
+        userRoomNumber = null;
+        userName = 'Guest';
+        hideAuthModal();
+        updateProfileDisplayForGuest();
+    });
+    authLoginForm?.addEventListener('submit', handleLogin);
+    authRegisterForm?.addEventListener('submit', handleRegister);
+    authForgotForm?.addEventListener('submit', handleForgotPassword);
+}
+function switchAuthTab(tab) {
+    hideAuthAlert();
+    authLoginForm?.classList.remove('active');
+    authRegisterForm?.classList.remove('active');
+    authForgotForm?.classList.remove('active');
+    if (tab === 'login') {
+        authLoginTabBtn?.classList.add('active');
+        authRegisterTabBtn?.classList.remove('active');
+        authLoginForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'flex';
+    } else if (tab === 'register') {
+        authLoginTabBtn?.classList.remove('active');
+        authRegisterTabBtn?.classList.add('active');
+        authRegisterForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'flex';
+    } else if (tab === 'forgot') {
+        authForgotForm?.classList.add('active');
+        if (authTabContainer) authTabContainer.style.display = 'none';
+    }
+}
+function showAuthAlert(message, type) {
+    if (authAlertBox) {
+        authAlertBox.textContent = message;
+        authAlertBox.className = `auth-alert show auth-alert-${type}`;
+    }
+}
+function hideAuthAlert() {
+    if (authAlertBox) {
+        authAlertBox.className = 'auth-alert';
+    }
+}
+function showAuthModal() {
+    if (authModal) {
+        authModal.classList.add('show');
+    }
+}
+function hideAuthModal() {
+    if (authModal) {
+        authModal.classList.remove('show');
+    }
+}
+let verificationCheckInterval = null;
+function showVerificationWaitingModal(user, email) {
+    hideAuthModal();
+    let verificationModal = document.getElementById('verification-modal');
+    if (!verificationModal) {
+        verificationModal = document.createElement('div');
+        verificationModal.id = 'verification-modal';
+        verificationModal.className = 'auth-modal-overlay show';
+        document.body.appendChild(verificationModal);
+    }
+    verificationModal.innerHTML = `
+        <div class="auth-modal-card" style="text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 20px;">📧</div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 12px;">Verify Your Email</h2>
+            <p style="color: #6b7280; margin-bottom: 8px;">We've sent a verification link to:</p>
+            <p style="color: #6366f1; font-weight: 600; margin-bottom: 24px;">${email}</p>
+            <div id="verification-status" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: #fef3c7; border-radius: 12px; margin-bottom: 20px;">
+                <div class="auth-loading-spinner" style="border-color: rgba(217, 119, 6, 0.3); border-top-color: #d97706;"></div>
+                <span style="color: #92400e; font-weight: 500;">Waiting for verification...</span>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 12px;">Click the link in your email to verify your account. This page will automatically redirect once verified.</p>
+            <p style="color: #dc2626; font-size: 13px; font-weight: 700; margin-bottom: 16px; background: #fee2e2; padding: 8px 12px; border-radius: 8px; border: 1px solid #fca5a5;">⚠️ NB: Please check your spam folder of Email</p>
+            <button id="resend-verification-btn" class="auth-btn" style="background: #f3f4f6; color: #374151; margin-bottom: 12px;">
+                📨 Resend Verification Email
+            </button>
+            <button id="cancel-verification-btn" class="auth-btn" style="background: #fee2e2; color: #dc2626;">
+                ✕ Cancel
+            </button>
+        </div>
+    `;
+    verificationModal.classList.add('show');
+    document.getElementById('resend-verification-btn').addEventListener('click', async () => {
+        try {
+            await sendEmailVerification(user);
+            showNotification('Verification email sent!', 'success');
+        } catch (error) {
+            showNotification('Failed to send email. Try again later.', 'error');
+        }
+    });
+    document.getElementById('cancel-verification-btn').addEventListener('click', () => {
+        clearInterval(verificationCheckInterval);
+        verificationModal.remove();
+        showAuthModal();
+        switchAuthTab('login');
+    });
+    verificationCheckInterval = setInterval(async () => {
+        try {
+            await user.reload();
+            if (user.emailVerified) {
+                clearInterval(verificationCheckInterval);
+                const statusEl = document.getElementById('verification-status');
+                if (statusEl) {
+                    statusEl.style.background = '#d1fae5';
+                    statusEl.innerHTML = `
+                        <span style="font-size: 24px;">✅</span>
+                        <span style="color: #065f46; font-weight: 500;">Email verified! Redirecting...</span>
+                    `;
+                }
+                setTimeout(() => {
+                    verificationModal.remove();
+                    window.location.reload();
+                }, 1500);
+            }
+        } catch (error) {
+        }
+    }, 3000);
+}
+function updateProfileDisplay(user, userData) {
+    if (user) {
+        const roomNumber = userData?.roomNumber || '';
+        if (roomNumber) {
+            userRoomNumber = roomNumber;
+            localStorage.setItem('userRoom', roomNumber);
+        }
+    }
+    const mMenuName = document.getElementById('mobile-menu-name');
+    const mMenuEmail = document.getElementById('mobile-menu-email');
+    const mMenuAvatar = document.getElementById('mobile-menu-avatar');
+    const navProfileImg = document.getElementById('navbar-profile-img');
+    const navProfileFallback = document.getElementById('navbar-profile-fallback');
+    if (user) {
+        const name = user.displayName || userData?.fullName || 'User';
+        if (mMenuName) mMenuName.textContent = name;
+        if (mMenuEmail) mMenuEmail.textContent = user.email || '';
+        if (mMenuAvatar) {
+            if (userData?.photoUrl) {
+                mMenuAvatar.innerHTML = `<img src="${userData.photoUrl}" alt="${name}">`;
+            } else {
+                mMenuAvatar.textContent = name.charAt(0).toUpperCase();
+            }
+        }
+        if (navProfileImg && navProfileFallback) {
+            if (userData?.photoUrl) {
+                navProfileImg.src = userData.photoUrl;
+                navProfileImg.alt = `${name} profile`;
+                navProfileImg.style.display = 'block';
+                navProfileFallback.style.display = 'none';
+            } else {
+                navProfileImg.style.display = 'none';
+                navProfileFallback.style.display = 'flex';
+            }
+        }
+    }
+    updateNavbarMenuLinks();
+}
+function updateProfileDisplayForGuest() {
+    const mMenuName = document.getElementById('mobile-menu-name');
+    const mMenuEmail = document.getElementById('mobile-menu-email');
+    const mMenuAvatar = document.getElementById('mobile-menu-avatar');
+    const navProfileImg = document.getElementById('navbar-profile-img');
+    const navProfileFallback = document.getElementById('navbar-profile-fallback');
+    if (mMenuName) mMenuName.textContent = 'Guest';
+    if (mMenuEmail) mMenuEmail.textContent = 'View Only Mode';
+    if (mMenuAvatar) mMenuAvatar.textContent = 'G';
+    if (navProfileImg && navProfileFallback) {
+        navProfileImg.style.display = 'none';
+        navProfileFallback.style.display = 'flex';
+    }
+    updateNavbarMenuLinks();
+}
+async function cleanupUnverifiedUsers() {
+    if (!db) return;
+    try {
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
+        if (!snapshot.exists()) return;
+        const users = snapshot.val();
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        for (const uid in users) {
+            const userData = users[uid];
+            if (userData.emailVerified === false && userData.createdAt) {
+                const createdTime = new Date(userData.createdAt).getTime();
+                if (now - createdTime > twentyFourHours) {
+                    await remove(ref(db, `users/${uid}`));
+                }
+            }
+        }
+    } catch (error) {}
+}
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+function isGmailEmail(email) {
+    return email.toLowerCase().endsWith('@gmail.com');
+}
+function isValidRoomNumber(roomNumber) {
+    const room = parseInt(roomNumber);
+    if (isNaN(room) || room < 102 || room > 617) return false;
+    const excludedRooms = [
+        102, 103, 104, 105, 106, 116,
+        203,
+        502, 503, 504, 505,
+        602, 603, 604, 605
+    ];
+    return !excludedRooms.includes(room);
+}
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-login-email').value.trim();
+    const password = document.getElementById('auth-login-password').value;
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+    const loginBtn = document.getElementById('auth-login-btn');
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+    try {
+        const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        if (!userCredential.user.emailVerified) {
+            // Auto-resend verification email
+            try {
+                await sendEmailVerification(userCredential.user);
+                // Clear pending flag if set by admin
+                const userRef = ref(db, `users/${userCredential.user.uid}`);
+                await update(userRef, { pendingVerifyEmail: false });
+            } catch(verifyErr) {}
+            showAuthAlert('Please verify your email before logging in. A new verification email has been sent. Check your inbox & spam folder.', 'warning');
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<span class="btn-text">Login</span>';
+            return;
+        }
+        showAuthAlert('Login successful!', 'success');
+        setTimeout(() => {
+            hideAuthModal();
+            window.location.reload();
+        }, 1000);
+    } catch (error) {
+        let errorMessage = 'Login failed. Please try again.';
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/invalid-credential') {
+            errorMessage = 'Invalid email or password.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<span class="btn-text">Login</span>';
+    }
+}
+async function handleRegister(e) {
+    e.preventDefault();
+    const name = document.getElementById('auth-register-name').value.trim();
+    const email = document.getElementById('auth-register-email').value.trim();
+    const roomNumber = document.getElementById('auth-register-room').value.trim();
+    const gender = document.getElementById('auth-register-gender')?.value || 'Male';
+    const password = document.getElementById('auth-register-password').value;
+    const confirmPassword = document.getElementById('auth-register-confirm-password').value;
+    if (!name) {
+        showAuthAlert('Please enter your full name', 'error');
+        return;
+    }
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+    if (!isGmailEmail(email)) {
+        showAuthAlert('Only @gmail.com emails are allowed. Temp/disposable emails are not accepted.', 'error');
+        return;
+    }
+    if (!isValidRoomNumber(roomNumber)) {
+        showAuthAlert('Please enter a valid room number', 'error');
+        return;
+    }
+    if (password.length < 6) {
+        showAuthAlert('Password must be at least 6 characters', 'error');
+        return;
+    }
+    if (password !== confirmPassword) {
+        showAuthAlert('Passwords do not match', 'error');
+        return;
+    }
+    const registerBtn = document.getElementById('auth-register-btn');
+    registerBtn.disabled = true;
+    registerBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+    try {
+        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
+        const userRef = ref(db, `users/${userCredential.user.uid}`);
+        await set(userRef, {
+            fullName: name,
+            email: email,
+            roomNumber: parseInt(roomNumber),
+            role: 'member',
+            gender: gender,
+            emailVerified: false,
+            createdAt: new Date().toISOString()
+        });
+        await sendEmailVerification(userCredential.user);
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
+        showVerificationWaitingModal(userCredential.user, email);
+    } catch (error) {
+        let errorMessage = 'Registration failed. Please try again.';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email already exists.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password is too weak.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<span class="btn-text">Create Account</span>';
+    }
+}
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-forgot-email').value.trim();
+    if (!isValidEmail(email)) {
+        showAuthAlert('Please enter a valid email address', 'error');
+        return;
+    }
+    const forgotBtn = document.getElementById('auth-forgot-btn');
+    forgotBtn.disabled = true;
+    forgotBtn.innerHTML = '<span class="auth-loading-spinner"></span>';
+    try {
+        await sendPasswordResetEmail(firebaseAuth, email);
+        showAuthAlert('Password reset email sent! Check your inbox.', 'success');
+        forgotBtn.disabled = false;
+        forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
+    } catch (error) {
+        let errorMessage = 'Failed to send reset email.';
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email.';
+        }
+        showAuthAlert(errorMessage, 'error');
+        forgotBtn.disabled = false;
+        forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
+    }
+}
+async function checkAuth() {
+    const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    let firebaseApp;
+    try {
+        firebaseApp = getApp();
+    } catch (e) {
+        firebaseApp = initializeApp(firebaseConfig);
+    }
+    firebaseAuth = getAuth(firebaseApp);
+    initAuthModal();
+    const urlParams = new URLSearchParams(window.location.search);
+    const isViewOnlyRequested = urlParams.get('viewOnly') === 'true';
+    return new Promise((resolve) => {
+        onAuthStateChanged(firebaseAuth, async (user) => {
+            if (!user) {
+                isLoggedIn = false;
+                if (isViewOnlyRequested) {
+                    isViewOnlyMode = true;
+                    userRoomNumber = null;
+                    userName = 'Guest';
+                    hideAuthModal();
+                    updateProfileDisplayForGuest();
+                    resolve(true);
+                    return;
+                }
+                showAuthModal();
+                resolve(false);
+                return;
+            }
+            if (!user.emailVerified) {
+                showAuthModal();
+                showAuthAlert('Please verify your email to continue. Check your inbox.', 'warning');
+                resolve(false);
+                return;
+            }
+            hideAuthModal();
+            userId = user.uid;
+            userEmail = user.email;
+            userName = user.displayName || 'User';
+            isLoggedIn = true;
+            isViewOnlyMode = false;
+
+            if (isViewOnlyRequested) {
+                urlParams.delete('viewOnly');
+                const newUrl = urlParams.toString()
+                    ? `${window.location.pathname}?${urlParams.toString()}`
+                    : window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+            localStorage.setItem('userId', user.uid);
+            localStorage.setItem('userEmail', user.email);
+            localStorage.setItem('userName', userName);
+            checkGeoLocation();
+            try {
+                const userRef = ref(db, `users/${user.uid}`);
+                const snapshot = await get(userRef);
+                if (snapshot.exists()) {
+                    await update(userRef, { emailVerified: true });
+                    const userData = snapshot.val();
+                    if (userData.fullName) {
+                        userName = userData.fullName;
+                        localStorage.setItem('userName', userName);
+                    }
+                    if (userData.roomNumber && userData.roomNumber !== 0) {
+                        userRoomNumber = userData.roomNumber;
+                        localStorage.setItem('userRoom', userData.roomNumber);
+                    }
+                    if (userData.role === 'admin') {
+                        isAdmin = true;
+                        localStorage.setItem('fas_is_admin', 'true');
+                    } else {
+                        isAdmin = false;
+                        localStorage.removeItem('fas_is_admin');
+                    }
+                    updateProfileDisplay(user, userData);
+                } else {
+                    // User data deleted by admin — sign out and block access
+                    localStorage.clear();
+                    await signOut(firebaseAuth);
+                    showAuthModal();
+                    showAuthAlert('Your account has been removed by an administrator. Please contact admin for support.', 'error');
+                    resolve(false);
+                    return;
+                }
+            } catch (error) {
+                updateProfileDisplay(user, null);
+            }
+            resolve(true);
+        });
+    });
+}
+async function init() {
+    updateSoundToggle();
+    // Apply random royal theme on each page load
+    applyColorTheme(getRandomRoyalTheme());
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    requestNotificationPermission();
+    requestLocationPermissionEarly();
+    checkInputWindowAndNotify();
+    setInterval(checkInputWindowAndNotify, 60000);
+    setTimeout(() => {
+        hidePreloader();
+    }, 10000);
+    await initializeFirebase();
+    await checkAuth();
+    initializeDatePicker();
+    initNavbarButtons();
+    setupOfflineBanner();
+    loadDashboardAnnouncements();
+    initStatsCounter();
+
+    await initFCM();
+    requestFCMToken();
+
+    // Detect page type: floor page or home/dashboard
+    const urlParams = new URLSearchParams(window.location.search);
+    const floorParam = urlParams.get('floor');
+    const isFloorPage = window.location.pathname.includes('/pages/floor.html');
+
+    if (isFloorPage && floorParam) {
+        // Floor detail page: auto-select floor from URL
+        const floor = parseInt(floorParam);
+        if (floor >= 1 && floor <= 6) {
+            currentFloor = floor;
+            ROOMS = getRoomsForFloor(currentFloor);
+            displayedCounts = {};
+            const floorOrdinal = getOrdinalSuffix(currentFloor);
+
+            if (totalAttendanceCard) totalAttendanceCard.classList.remove('hidden');
+            if (roomContainer) roomContainer.classList.remove('hidden');
+            if (loadingStatus) loadingStatus.classList.remove('hidden');
+            if (timeNote) timeNote.classList.remove('hidden');
+            if (floorTitle) floorTitle.textContent = `Total Students Present on ${floorOrdinal} Floor`;
+            if (roomSectionTitle) roomSectionTitle.textContent = `${floorOrdinal} Floor - Room Attendance`;
+
+            const navStatus = document.getElementById('navbar-status');
+            if (navStatus) navStatus.textContent = `${floorOrdinal} Floor`;
+
+            renderInitialRooms();
+            setupRealtimeListener(currentViewDate);
+            updateViewingInfo();
+
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.room-card');
+                cards.forEach((card, index) => {
+                    card.classList.add('room-card-animate');
+                    card.style.animationDelay = `${index * 40}ms`;
+                });
+            }, 200);
+        } else {
+            window.location.href = '/index.html';
+            return;
+        }
+    } else {
+        // Home/Dashboard page
+        currentFloor = null;
+        if (floorSelect) floorSelect.value = '';
+        ALL_FLOORS.forEach(f => {
+            const fc = document.getElementById(`floor-card-${f}`);
+            if (fc) fc.classList.remove('floor-selected');
+        });
+        if (noFloorMessage) noFloorMessage.classList.remove('hidden');
+        if (totalAttendanceCard) totalAttendanceCard.classList.add('hidden');
+        if (roomContainer) roomContainer.classList.add('hidden');
+        if (countdownContainer) countdownContainer.classList.add('hidden');
+        if (timeNote) timeNote.classList.add('hidden');
+        if (dateDisplay) dateDisplay.innerHTML = '';
+        updateNavbarForDashboard();
+    }
+
+    // Always use today's date — never restore old saved date
+    currentViewDate = getTodayDateKey();
+    setDatePickerToToday();
+
+    // Hide preloader — page is ready
+    hidePreloader();
+}
+
+function initNavbarButtons() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const overlay = document.getElementById('mobile-menu-overlay');
+    const closeBtn = document.getElementById('mobile-menu-close');
+    const mobileLogout = document.getElementById('mobile-menu-logout');
+    const mobileMenuPanel = document.getElementById('mobile-menu-panel');
+
+    function openMobileMenu() {
+        if (overlay) overlay.classList.add('active');
+        if (hamburgerBtn) hamburgerBtn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeMobileMenu() {
+        if (overlay) overlay.classList.remove('active');
+        if (hamburgerBtn) hamburgerBtn.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', () => {
+            if (overlay && overlay.classList.contains('active')) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        });
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMobileMenu);
+    }
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || !mobileMenuPanel || !mobileMenuPanel.contains(e.target)) {
+                closeMobileMenu();
+            }
+        });
+    }
+
+    if (mobileLogout) {
+        mobileLogout.addEventListener('click', async () => {
+            closeMobileMenu();
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await signOut(firebaseAuth);
+                    localStorage.removeItem('fas_selected_floor');
+                    localStorage.removeItem('fas_selected_date');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userEmail');
+                    localStorage.removeItem('userName');
+                    localStorage.removeItem('userRoom');
+                    window.location.reload();
+                } catch (error) {
+                    showNotification('Logout failed. Please try again.', 'danger', 3000);
+                }
+            }
+        });
+    }
+}
+
+function updateNavbarForFloorView() {
+    const navStatus = document.getElementById('navbar-status');
+    if (navStatus && currentFloor) {
+        navStatus.textContent = `${getOrdinalSuffix(currentFloor)} Floor`;
+    }
+}
+
+function updateNavbarForDashboard() {
+    const navStatus = document.getElementById('navbar-status');
+    if (navStatus) navStatus.textContent = 'Dashboard';
+}
+
+function updateViewingInfo() {
+    const viewingInfo = document.getElementById('viewing-info');
+    const viewingBadge = document.getElementById('viewing-badge');
+    const viewingText = document.getElementById('viewing-text');
+    const todayDateKey = getTodayDateKey();
+    isViewingToday = (currentViewDate === todayDateKey);
+
+    if (viewingInfo) viewingInfo.classList.remove('hidden');
+
+    if (viewingBadge) {
+        if (isViewingToday) {
+            viewingBadge.textContent = '● LIVE';
+            viewingBadge.className = 'viewing-badge viewing-badge-live';
+        } else {
+            viewingBadge.textContent = '● HISTORY';
+            viewingBadge.className = 'viewing-badge viewing-badge-history';
+        }
+    }
+
+    if (viewingText) {
+        viewingText.textContent = formatDisplayDate(currentViewDate);
+    }
+}
+
+// ===== Stats Counter: Total Views & Online Now =====
+function initStatsCounter() {
+    // Increment total views
+    const viewsRef = ref(db, 'stats/totalViews');
+    update(ref(db, 'stats'), { totalViews: increment(1) }).catch(() => {});
+
+    // Listen for total views
+    onValue(viewsRef, (snapshot) => {
+        const views = snapshot.val() || 0;
+        const el = document.getElementById('stats-total-views');
+        if (el) el.textContent = views.toLocaleString();
+    });
+
+    // Online presence tracking
+    const sessionId = (userId || 'anon') + '_' + Math.random().toString(36).substr(2, 9);
+    const onlineRef = ref(db, `stats/online/${sessionId}`);
+    const connectedRef = ref(db, '.info/connected');
+
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            set(onlineRef, { timestamp: Date.now() });
+            onDisconnect(onlineRef).remove();
+        }
+    });
+
+    // Listen for online count
+    const onlineListRef = ref(db, 'stats/online');
+    onValue(onlineListRef, (snapshot) => {
+        const onlineData = snapshot.val();
+        const count = onlineData ? Object.keys(onlineData).length : 0;
+        const el = document.getElementById('stats-online-now');
+        if (el) el.textContent = count.toLocaleString();
+    });
+}
+
+init();

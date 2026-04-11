@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Immediately lock scrolling to prevent preloader jank
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.style.touchAction = 'none';
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Hall Attendance Tracker</title>
+    <link rel="icon" type="image/png" href="assets/images/hall.png">
+    <link rel="manifest" href="pwa/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hall Attendance">
+    <link rel="apple-touch-icon" href="assets/images/hall.png">
+    <meta name="description" content="Track hall attendance across all floors in real-time">
+    <link rel="preload" href="assets/images/hall.png" as="image">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <script src="https://cdn.tailwindcss.com" defer></script>
+</head>
+<body>
+    <div id="preloader-placeholder"></div>
+    <div id="auth-modal" class="auth-modal-overlay">
+        <div class="auth-modal-card">
+            <div class="text-center mb-6">
+                <img src="assets/images/hall.png" alt="Hall Logo" class="w-16 h-16 mx-auto mb-3" style="border-radius:16px; box-shadow: 0 4px 16px rgba(99,102,241,0.15);">
+                <h1 class="text-2xl font-bold" style="color: var(--text-primary, #1e293b); letter-spacing: -0.02em;">Hall Attendance Tracker</h1>
+                <p class="mt-1" style="color: var(--text-muted, #94a3b8); font-size: 14px;">Welcome! Please login or create an account</p>
+            </div>
+            <div id="auth-alert-box" class="auth-alert"></div>
+            <div class="auth-tab-container" id="auth-tab-container">
+                <button class="auth-tab-btn active" data-tab="login" id="auth-login-tab-btn">Login</button>
+                <button class="auth-tab-btn" data-tab="register" id="auth-register-tab-btn">Register</button>
+            </div>
+            <form id="auth-login-form" class="auth-form active">
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-login-email">Email Address</label>
+                    <input type="email" id="auth-login-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="auth-error-message" id="auth-login-email-error">Please enter a valid email</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-login-password">Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-login-password" class="auth-input" placeholder="Enter your password" required>
+                        <button type="button" class="auth-password-toggle" data-target="auth-login-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-login-password-error">Password is required</p>
+                </div>
+                <div class="flex justify-end mb-4">
+                    <a href="#" class="auth-forgot-link" id="auth-forgot-password-link">Forgot Password?</a>
+                </div>
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-login-btn">
+                    <span class="btn-text">Login</span>
+                </button>
+                <div class="auth-divider"><span>or</span></div>
+                <button type="button" id="auth-continue-without-login" class="auth-btn auth-btn-secondary" style="margin-top: 10px;">
+                    👁️ Continue without login
+                </button>
+            </form>
+            <form id="auth-register-form" class="auth-form">
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-name">Full Name</label>
+                    <input type="text" id="auth-register-name" class="auth-input" placeholder="Enter your full name" required>
+                    <p class="auth-error-message" id="auth-register-name-error">Full name is required</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-email">Email Address</label>
+                    <input type="email" id="auth-register-email" class="auth-input" placeholder="Enter your Gmail address" required pattern="[a-zA-Z0-9._%+\-]+@gmail\.com" title="Only @gmail.com emails are allowed">
+                    <p class="auth-error-message" id="auth-register-email-error">Only @gmail.com emails are allowed</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-room">Room Number</label>
+                    <input type="number" id="auth-register-room" class="auth-input" placeholder="Enter your room number (e.g., 302)" required min="102" max="617">
+                    <p class="auth-error-message" id="auth-register-room-error">Please enter a valid room number</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-gender">Gender</label>
+                    <select id="auth-register-gender" class="auth-input" required>
+                        <option value="Male" selected>Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-password">Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-register-password" class="auth-input" placeholder="Create a password (min 6 characters)" required minlength="6">
+                        <button type="button" class="auth-password-toggle" data-target="auth-register-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-register-password-error">Password must be at least 6 characters</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-register-confirm-password">Confirm Password</label>
+                    <div class="auth-password-wrapper">
+                        <input type="password" id="auth-register-confirm-password" class="auth-input" placeholder="Retype your password" required>
+                        <button type="button" class="auth-password-toggle" data-target="auth-register-confirm-password">👁️</button>
+                    </div>
+                    <p class="auth-error-message" id="auth-register-confirm-password-error">Passwords do not match</p>
+                </div>
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-register-btn">
+                    <span class="btn-text">Create Account</span>
+                </button>
+            </form>
+            <form id="auth-forgot-form" class="auth-form">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold" style="color: var(--text-primary, #1e293b);">Reset Password</h2>
+                    <p class="text-sm mt-1" style="color: var(--text-muted, #94a3b8);">Enter your email to receive a password reset link</p>
+                </div>
+                <div class="auth-form-group">
+                    <label class="auth-form-label" for="auth-forgot-email">Email Address</label>
+                    <input type="email" id="auth-forgot-email" class="auth-input" placeholder="Enter your email" required>
+                    <p class="auth-error-message" id="auth-forgot-email-error">Please enter a valid email</p>
+                </div>
+                <button type="submit" class="auth-btn auth-btn-primary" id="auth-forgot-btn">
+                    <span class="btn-text">Send Reset Link</span>
+                </button>
+                <button type="button" class="auth-btn auth-btn-secondary" id="auth-back-to-login" style="margin-top: 12px;">
+                    ← Back to Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="verification-modal" class="auth-modal-overlay" style="display:none;">
+        <div class="auth-modal-card">
+            <div class="text-center mb-4">
+                <h2 class="text-xl font-bold" style="color: var(--text-primary, #1e293b);">Verify Your Email</h2>
+                <p class="text-sm mt-1" style="color: var(--text-muted, #94a3b8);">We have sent a verification link to your email.</p>
+            </div>
+            <div id="verification-status" class="auth-alert" style="display:block;">Waiting for verification...</div>
+            <button type="button" class="auth-btn auth-btn-primary" id="resend-verification-btn">Resend Verification Email</button>
+            <button type="button" class="auth-btn auth-btn-secondary" id="cancel-verification-btn" style="margin-top: 10px;">Cancel</button>
+            <p class="text-xs mt-3" style="color:#ef4444; font-weight:600; text-align:center;">Check your spam/junk folder if you don't see the email.</p>
+        </div>
+    </div>
+
+    
+
+    <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+
+    <div id="app" class="min-h-screen" style="opacity: 0; transition: opacity 0.4s ease;">
+        <div id="toast-container" class="toast-container"></div>
+        <div id="offline-banner" class="offline-banner" style="display:none;">📡 You're offline — some features may be limited</div>
+        <div class="app-bg-decoration" aria-hidden="true" style="position:fixed;top:-120px;right:-120px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.05) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+        <div class="app-bg-decoration" aria-hidden="true" style="position:fixed;bottom:-100px;left:-100px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,0.04) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+        <div id="geo-toast-container" class="geo-toast-container"></div>
+
+        <div id="location-permission-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(15,23,42,0.6);backdrop-filter:blur(8px);">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div style="background:#fff;border-radius:24px;max-width:380px;width:100%;padding:32px 28px;box-shadow:0 32px 64px -12px rgba(0,0,0,0.2);text-align:center;animation:modalSlideUp 0.4s ease;">
+                    <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <h3 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin-bottom:8px;">Enable Location Access</h3>
+                    <p style="font-size:0.875rem;color:#64748b;line-height:1.6;margin-bottom:24px;">
+                        We need your location to verify you're inside the hall area. This ensures accurate attendance tracking.
+                    </p>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <button id="location-allow-btn" style="width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;font-weight:600;font-size:0.95rem;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(99,102,241,0.3);">📍 Allow Location</button>
+                        <button id="location-deny-btn" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:14px;background:transparent;color:#64748b;font-weight:500;font-size:0.875rem;cursor:pointer;transition:all 0.2s;">Maybe Later</button>
+                    </div>
+                    <p style="font-size:0.75rem;color:#94a3b8;margin-top:16px;line-height:1.5;">🔒 Your location is only used to verify hall presence and is never stored or shared.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="notification-container" class="fixed top-2 left-1/2 -translate-x-1/2 transform z-50 space-y-3 w-full max-w-md px-4"></div>
+
+        <nav class="app-navbar">
+            <div class="navbar-inner">
+                <div class="navbar-row-top">
+                    <div class="navbar-brand">
+                        <img src="assets/images/hall.png" alt="Hall Logo" class="navbar-logo">
+                        <div class="navbar-title-group">
+                            <h1 class="navbar-title">Hall Attendance</h1>
+                            <span class="navbar-subtitle" id="navbar-status">Dashboard</span>
+                        </div>
+                    </div>
+                    <div class="navbar-quick-icons">
+                        <div id="navbar-countdown" class="navbar-countdown hidden">
+                            <span class="navbar-countdown-icon">⏱</span>
+                            <div id="countdown-timer" class="navbar-countdown-time">--:--:--</div>
+                            <div id="countdown-status" class="navbar-countdown-label">remaining</div>
+                        </div>
+                        <div class="color-picker-wrapper">
+                            <button id="color-picker-btn" class="navbar-btn navbar-btn-icon" title="Theme Color">🎨</button>
+                            <div id="color-picker-dropdown" class="color-dropdown hidden">
+                                <button class="color-option" data-color="blue" title="Blue">🔵</button>
+                                <button class="color-option" data-color="green" title="Green">🟢</button>
+                                <button class="color-option" data-color="purple" title="Purple">🟣</button>
+                                <button class="color-option" data-color="indigo" title="Indigo">🟠</button>
+                            </div>
+                        </div>
+                        <button id="sound-toggle" class="navbar-btn navbar-btn-icon" title="Toggle Sound">🔊</button>
+                        <a href="pages/profile.html" class="navbar-icon-btn navbar-profile-btn" id="navbar-profile-link" title="Profile">
+                            <img id="navbar-profile-img" class="navbar-profile-img" alt="Profile" style="display:none;">
+                            <span id="navbar-profile-fallback" class="navbar-profile-fallback" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </span>
+                        </a>
+                        <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                            <span class="hamburger-line"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+            <div class="mobile-menu-panel" id="mobile-menu-panel">
+                <div class="mobile-menu-header">
+                    <div class="mobile-menu-user" id="mobile-menu-user">
+                        <div class="mobile-menu-avatar" id="mobile-menu-avatar">U</div>
+                        <div>
+                            <div class="mobile-menu-name" id="mobile-menu-name">User</div>
+                            <div class="mobile-menu-email" id="mobile-menu-email"></div>
+                        </div>
+                    </div>
+                    <button class="mobile-menu-close" id="mobile-menu-close">&times;</button>
+                </div>
+                <nav class="mobile-menu-nav">
+                    <a href="index.html" class="mobile-menu-item mobile-menu-item-active">
+                        <span class="mobile-menu-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
+                    <a href="pages/profile.html" class="mobile-menu-item">
+                        <span class="mobile-menu-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="mobile-menu-item" id="mobile-menu-myfloor" style="display:none;">
+                        <span class="mobile-menu-icon">🏢</span>
+                        <span>My Floor</span>
+                    </a>
+                    <button id="mobile-menu-install-app" class="mobile-menu-item mobile-menu-install" style="display:none;">
+                        <span class="mobile-menu-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:6px;padding:2px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </span>
+                        <span>Install App</span>
+                    </button>
+                    <a href="pages/admin.html" class="mobile-menu-item mobile-menu-admin" id="mobile-menu-admin" style="display:none;">
+                        <span class="mobile-menu-icon">🛡️</span>
+                        <span>Admin Panel</span>
+                    </a>
+                    <button id="mobile-menu-install-app-admin" class="mobile-menu-item mobile-menu-install" style="display:none;">
+                        <span class="mobile-menu-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:6px;padding:2px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </span>
+                        <span>Install App</span>
+                    </button>
+                </nav>
+                <div class="mobile-menu-footer">
+                    <button id="mobile-menu-logout" class="mobile-menu-item mobile-menu-logout" style="display:none;">
+                        <span class="mobile-menu-icon"><img src="assets/images/logout.png" alt="Logout" style="width:18px;height:18px;vertical-align:middle;"></span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-content">
+            <div id="announcements-banner" class="announcements-banner" style="display:none;"></div>
+            <div id="geo-location-banner" class="geo-location-banner hidden">
+                <span id="geo-location-icon" class="geo-location-icon">📡</span>
+                <span id="geo-location-text" class="geo-location-text">Checking location...</span>
+            </div>
+
+            <div class="toolbar-container">
+                <div class="toolbar-card">
+                    <div class="toolbar-row">
+                        <div class="toolbar-section">
+                            <label for="date-picker" class="toolbar-label">🗓️ View Date</label>
+                            <div class="toolbar-date-group">
+                                <input type="date" id="date-picker" class="toolbar-date-input" />
+                                <button id="today-btn" class="toolbar-today-btn">Today</button>
+                            </div>
+                        </div>
+                        <div class="toolbar-section">
+                            <label for="floor-select" class="toolbar-label">🏢 Select Floor</label>
+                            <select id="floor-select" class="toolbar-floor-select">
+                                <option value="">All Floors</option>
+                                <option value="1">1st Floor</option>
+                                <option value="2">2nd Floor</option>
+                                <option value="3">3rd Floor</option>
+                                <option value="4">4th Floor</option>
+                                <option value="5">5th Floor</option>
+                                <option value="6">6th Floor</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-section">
+                            <span id="view-mode-indicator" class="view-mode-indicator hidden">👁️ View Only</span>
+                        </div>
+                    </div>
+                    <div id="viewing-info" class="toolbar-info hidden">
+                        <span id="viewing-badge" class="viewing-badge viewing-badge-live">● LIVE</span>
+                        <span id="viewing-text" class="viewing-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-6xl mx-auto mb-6 px-4 hero-shell">
+                <div id="total-attendance-card" class="gradient-card p-6 sm:p-8 rounded-3xl mb-0 hidden" style="box-shadow: 0 20px 50px -12px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;">
+                    <p id="floor-title" class="text-sm uppercase font-medium text-white/90 mb-2 text-center" style="letter-spacing: 0.1em; font-size: 0.8rem;">Total in Hall</p>
+                    <div class="flex justify-center items-center">
+                        <span id="total-count-display" class="text-6xl sm:text-7xl font-bold text-white" style="letter-spacing: -0.03em;">0</span>
+                    </div>
+                </div>
+                <p id="loading-status" class="text-sm mt-1 text-center hidden" style="color: var(--text-muted, #94a3b8);">Initializing database and loading data...</p>
+                <p id="date-display" class="text-xs mt-1 text-center" style="color: var(--text-muted, #94a3b8);"></p>
+                <p id="time-note" class="text-sm font-bold mt-1 text-center hidden" style="color: var(--theme-danger, #ef4444); background: #fef2f2; padding: 8px 16px; border-radius: 10px; border: 1px solid #fecaca;">Note: Attendance input is only allowed between 6:30 PM to 10:00 PM.</p>
+
+                <div id="no-floor-message" class="text-center py-4 mt-2">
+                    <div id="total-hall-card" class="gradient-card p-6 sm:p-8 rounded-3xl max-w-md mx-auto mb-3" style="box-shadow: 0 20px 50px -12px rgba(99,102,241,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset;">
+                        <p class="text-sm uppercase font-medium text-white/90 mb-2 text-center" style="letter-spacing: 0.1em; font-size: 0.8rem;">🏛️ Total Students Present in Hall</p>
+                        <div class="flex justify-center items-center">
+                            <span id="total-hall-count" class="text-5xl sm:text-6xl font-bold text-white" style="letter-spacing: -0.03em;">0</span>
+                        </div>
+                        <p class="text-xs text-white/70 mt-2 text-center" style="font-weight: 500;">Combined attendance across all floors</p>
+                    </div>
+                    <p class="text-sm font-semibold mt-3 text-center flex items-center justify-center gap-2" style="color: #ffffff; background: #ef4444; padding: 10px 16px; border-radius: 10px; border: 1px solid #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+                        <span class="inline-block w-2 h-2 rounded-full animate-pulse" style="background: #ffffff;"></span>
+                        Click on a floor card below to view & input room attendance
+                    </p>
+                    <div id="floor-cards-grid" class="floor-grid-shell grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 max-w-2xl mx-auto">
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 1st Floor</div>
+                                <div class="floor-badge" id="floor-badge-1">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-blue-600" id="floor-count-1">0</div>
+                        </div>
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-2">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 2nd Floor</div>
+                                <div class="floor-badge" id="floor-badge-2">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-emerald-600" id="floor-count-2">0</div>
+                        </div>
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 3rd Floor</div>
+                                <div class="floor-badge" id="floor-badge-3">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-violet-600" id="floor-count-3">0</div>
+                        </div>
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 4th Floor</div>
+                                <div class="floor-badge" id="floor-badge-4">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-orange-600" id="floor-count-4">0</div>
+                        </div>
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-5">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 5th Floor</div>
+                                <div class="floor-badge" id="floor-badge-5">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-pink-600" id="floor-count-5">0</div>
+                        </div>
+                        <div class="floor-card p-5 rounded-2xl" id="floor-card-6">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-base font-bold text-gray-800">🏠 6th Floor</div>
+                                <div class="floor-badge" id="floor-badge-6">-</div>
+                            </div>
+                            <div class="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Present</div>
+                            <div class="text-4xl font-extrabold text-cyan-600" id="floor-count-6">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-message" class="max-w-6xl mx-auto mt-6 p-4 rounded-xl hidden" role="alert" style="background: #fef2f2; border: 1px solid #fecaca; border-left: 3px solid #ef4444; color: #991b1b;">
+                <p class="font-bold" style="font-size: 0.9rem;">Error:</p>
+                <p id="error-text" class="text-sm" style="margin-top: 4px; opacity: 0.85;"></p>
+            </div>
+
+            <div id="room-container" class="max-w-6xl mx-auto mt-6 px-4 hidden room-section-shell">
+                <div class="room-toolbar">
+                    <div class="room-toolbar-left">
+                        <h2 id="room-section-title" class="room-section-title">Rooms</h2>
+                        <button class="page-btn page-btn-sm page-btn-info" id="open-activity-log" style="margin-left: 10px;">📜 Activity Log</button>
+                    </div>
+                    <div class="room-toolbar-right">
+                        <div class="room-search-wrap">
+                            <input type="text" id="room-search" class="room-search-input" placeholder="Search room...">
+                            <button id="clear-search" class="room-search-clear hidden">×</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="room-filter-row">
+                    <button class="filter-btn filter-btn-active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="occupied">Occupied</button>
+                    <button class="filter-btn" data-filter="empty">Empty</button>
+                    <button class="filter-btn" data-filter="full">Full</button>
+                    <button class="filter-btn" data-filter="my-room">My Room</button>
+                </div>
+                <div id="room-grid" class="room-grid"></div>
+            </div>
+        </div>
+
+        <div id="activity-log-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center z-50 hidden" style="background: rgba(15,23,42,0.5); backdrop-filter: blur(8px);">
+            <div class="max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col" style="background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); border-radius: 20px; box-shadow: 0 32px 64px -12px rgba(0,0,0,0.14), 0 0 0 1px rgba(255,255,255,0.6) inset; border: 1px solid rgba(0,0,0,0.06);">
+                <div class="p-6 flex justify-between items-center" style="border-bottom: 1px solid rgba(0,0,0,0.06);">
+                    <h2 class="text-2xl font-bold" style="color: var(--text-primary, #1e293b); letter-spacing: -0.02em;">Activity Log</h2>
+                    <button id="close-activity-log" class="text-2xl" style="color: var(--text-muted, #94a3b8); cursor:pointer; background:none; border:none; transition: color 0.2s;">&times;</button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex gap-3 flex-wrap">
+                        <input type="date" id="log-date-filter" style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;" />
+                        <select id="log-user-filter" style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;">
+                            <option value="">All Users</option>
+                        </select>
+                        <select id="log-room-filter" style="padding: 8px 14px; border: 1.5px solid var(--border-light, #e2e8f0); border-radius: 10px; font-family: inherit; font-size: 13px; background: var(--bg-subtle, #f8fafc); transition: all 0.2s; outline:none;">
+                            <option value="">All Rooms</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto px-6 pb-6">
+                    <div id="activity-log-content" class="space-y-2">
+                        <p class="text-center text-gray-500 py-8">Loading activity log...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-counter-bar">
+            <div class="stats-counter-inner">
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-views"></span>
+                    <span>👀 Total Views: <strong id="stats-total-views">0</strong></span>
+                </span>
+                <span class="stats-counter-item">
+                    <span class="stats-dot stats-dot-online"></span>
+                    <span>👥 Online Now: <strong id="stats-online-now">0</strong></span>
+                </span>
+            </div>
+        </div>
+
+        
+
+        </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
+<script src="js/globalState.js"></script>
+    <div id="footer-placeholder"></div>
+    <script src="js/preloader.js"></script>
+    <script src="js/footer.js"></script>
+</body>
+</html>
