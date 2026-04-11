@@ -373,12 +373,27 @@
     font-weight: 500;
 }
 
+/* ===== App Layout ===== */
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+}
+
 /* ===== Content Area ===== */
 .app-content {
+    flex: 1 0 auto;
     max-width: 1200px;
     margin: 0 auto;
     padding-top: 16px;
     padding-bottom: 24px;
+}
+
+.stats-counter-bar,
+.app-footer-bar {
+    flex-shrink: 0;
 }
 
 /* ===== Home/Floor Hero ===== */
