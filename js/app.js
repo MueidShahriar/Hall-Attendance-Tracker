@@ -91,7 +91,7 @@ let isLoggedIn = false;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
 const ALLOWED_START_MINUTES = (18 * 60) + 30;
-const ALLOWED_END_MINUTES = (22 * 60);
+const ALLOWED_END_MINUTES = (24 * 60);
 
 const HALL_LATITUDE = 24.289462;
 const HALL_LONGITUDE = 89.008797;
