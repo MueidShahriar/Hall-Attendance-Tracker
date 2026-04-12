@@ -90,7 +90,7 @@ let currentUnsubscribe = null;
 let isLoggedIn = false;
 let isViewOnlyMode = false;
 const ALLOW_TIME_LIMIT = true;
-const ALLOWED_START_MINUTES = (18 * 60) + 30;
+const ALLOWED_START_MINUTES = (18 * 60);
 const ALLOWED_END_MINUTES = (24 * 60);
 
 const HALL_LATITUDE = 24.289462;
@@ -1103,11 +1103,11 @@ function checkInputWindowAndNotify() {
         if (notificationState.lastSlotKey !== slotKey) {
             const isFirst = slotIndex === 0;
             const toastMsg = isFirst
-                ? '🔔 Attendance window is now OPEN! Please update room attendance until 10:00 PM.'
+                ? '🔔 Attendance window is now OPEN! Please update room attendance until 12:00 AM.'
                 : '⏰ Reminder: Attendance input window is still open. Please update your room attendance.';
             const notifyTitle = isFirst ? '🔔 Attendance Window Open' : '⏰ Attendance Reminder';
             const notifyBody = isFirst
-                ? 'Attendance input window is now OPEN! Please update your room attendance before 10:00 PM.'
+                ? 'Attendance input window is now OPEN! Please update your room attendance before 12:00 AM.'
                 : 'Reminder: Attendance input window is still open. Please update your room attendance.';
             showNotification(toastMsg, isFirst ? 'info' : 'warning', 12000);
             sendBrowserNotification(notifyTitle, notifyBody);
@@ -1682,7 +1682,7 @@ async function updateAttendance(roomNumber, value) {
         return;
     }
     if (!isAdmin && !isWithinAllowedTime()) {
-        displayError('Attendance can only be updated between 06:30 PM to 10:00 PM.');
+        displayError('Attendance can only be updated between 06:00 PM to 12:00 AM.');
         return;
     }
     let count = parseInt(value);

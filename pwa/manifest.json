@@ -1,7 +1,7 @@
 {
     "name": "Hall Attendance Tracker",
     "short_name": "Hall Tracker",
-    "description": "A complete real-time Progressive Web App (PWA) for monitoring and tracking hall student attendance across multiple floors and administrative panels.",
+    "description": "A complete real-time Progressive Web App (PWA) for monitoring and tracking hall student attendance across multiple floors and administrative panels (input window: 6:00 PM to 12:00 AM).",
     "start_url": "../index.html",
     "display": "standalone",
     "background_color": "#f8fafc",

@@ -11,6 +11,7 @@
 - **📱 Full PWA Support:** Installable on iOS, Android, and Desktop natively with an immersive fullscreen experience and offline capabilities via Service Workers.
 - **⚡ Real-Time Synchronization:** Live attendance tracking and viewing stats empowered by Firebase Realtime Database.
 - **📍 Geolocation Verification:** Restricts attendance inputs dynamically based on user physical location bounds.
+- **⏰ Attendance Window:** Inputs are allowed from 6:00 PM to 12:00 AM.
 - **🔐 Secure Authentication:** Complete authentication flow via Firebase Auth (Login, Register, Password Reset, Email Verification).
 - **🛡️ Admin & Role Management:** Dedicated administrative dashboards to monitor live occupancy, inspect activity logs, announce notices, and handle floor management.
 - **🎨 Premium UI/UX:** Built with a custom modular CSS architecture and Tailwind CSS CDN for fluid, aesthetic animations and responsive designs perfectly optimized for mobile (e.g., standard viewport `100svh` iOS fixes).
