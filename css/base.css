@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 :root {
+    --app-height: 100vh;
     --font-sans: 'Sora', 'Space Grotesk', sans-serif;
     --font-display: 'Space Grotesk', 'Sora', sans-serif;
     --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -85,6 +86,7 @@ html, body {
 
     /*  removed to fix scrolling */
     width: 100%;
+    height: 100%;
     min-height: 100%; /* Fix iOS */
     margin: 0;
     padding: 0;
@@ -97,6 +99,7 @@ body {
     min-height: 100vh;
     min-height: 100svh;
     min-height: 100dvh;
+    min-height: var(--app-height);
     font-family: var(--font-sans);
     background-color: var(--bg);
     background-image:

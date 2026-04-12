@@ -1,3 +1,12 @@
+const setViewportHeight = () => {
+    const height = window.innerHeight || document.documentElement.clientHeight;
+    document.documentElement.style.setProperty('--app-height', `${height}px`);
+};
+
+setViewportHeight();
+window.addEventListener('resize', setViewportHeight);
+window.addEventListener('orientationchange', setViewportHeight);
+
 const loadPreloader = () => {
     const placeholder = document.getElementById("preloader-placeholder");
     if (placeholder) {
