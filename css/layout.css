@@ -805,6 +805,17 @@
     display: flex;
     justify-content: center;
 }
+
+#footer-placeholder {
+    width: 100%;
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+}
+
+#footer-placeholder .app-footer-bar {
+    width: 100%;
+}
 .app-footer-bar::before {
     content: '';
     position: absolute;

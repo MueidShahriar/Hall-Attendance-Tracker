@@ -78,6 +78,7 @@
 html {
     scroll-behavior: smooth;
     text-size-adjust: 100%;
+    background-color: var(--bg);
 }
 html, body {
     overflow-x: hidden;
@@ -109,6 +110,7 @@ body {
     /*  removed to fix scrolling */
     animation: pageFadeIn 0.35s ease-out both;
     -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
 }
 
 h1, h2, h3, .navbar-title, .page-card-title, .room-section-title {
