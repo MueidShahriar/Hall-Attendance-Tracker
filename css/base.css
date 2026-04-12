@@ -240,4 +240,6 @@ html:has(.page-loader:not(.loaded)) body {
 
     overflow: hidden !important;
     touch-action: none;
+    animation: none !important;
+    transform: none !important;
 }

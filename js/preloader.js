@@ -1,9 +1,19 @@
-document.addEventListener("DOMContentLoaded", function () {
+const loadPreloader = () => {
     const placeholder = document.getElementById("preloader-placeholder");
     if (placeholder) {
-        let pathPrefix = '';
-        if (window.location.pathname.includes('/pages/')) {
-            pathPrefix = '../';
+        const pathPrefix = window.location.pathname.includes('/pages/') ? '../' : '';
+
+        const applyAssetPrefix = (scope) => {
+            const assets = scope.querySelectorAll('[data-asset-src]');
+            assets.forEach((node) => {
+                const assetPath = node.getAttribute('data-asset-src');
+                if (assetPath) node.setAttribute('src', pathPrefix + assetPath);
+            });
+        };
+
+        if (placeholder.querySelector("#page-loader")) {
+            applyAssetPrefix(placeholder);
+            return;
         }
 
         fetch(pathPrefix + "preloader.html")
@@ -13,16 +23,19 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(html => {
                 placeholder.innerHTML = html;
-                const pageLoader = placeholder.querySelector("#page-loader");
-                if (pageLoader) {
-                    pageLoader.classList.add("page-loader--visible");
-                }
+                applyAssetPrefix(placeholder);
             })
             .catch(error => {
                 console.error("Error loading preloader:", error);
             });
     }
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", loadPreloader);
+} else {
+    loadPreloader();
+}
 
 window.addEventListener("load", function () {
     const pageLoader = document.getElementById("page-loader");

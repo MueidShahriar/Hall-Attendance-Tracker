@@ -802,6 +802,8 @@
     line-height: 1.4;
     position: relative;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
 }
 .app-footer-bar::before {
     content: '';
@@ -893,10 +895,14 @@
     box-shadow: var(--shadow-sm);
 }
 .footer-inner {
-    max-width: 480px;
+    width: min(480px, 92vw);
     margin: 0 auto;
     position: relative;
     z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .footer-brand {
     display: flex;

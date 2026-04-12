@@ -10,8 +10,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <title>Location Debug - Hall Attendance Tracker</title>
     <link rel="icon" type="image/png" href="../assets/images/hall.png">
-    <link rel="stylesheet" href="../css/base.css">
-    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/pages.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; min-height: 100vh; padding: 20px; }
@@ -54,12 +54,12 @@
         }
 
         .location-footer-wrap {
-            margin: 24px -20px -20px;
+            margin: 24px 0 0;
         }
 
         @media (max-width: 520px) {
             .location-footer-wrap {
-                margin: 20px -12px -12px;
+                margin: 20px 0 0;
             }
         }
 
@@ -120,7 +120,7 @@
     </div>
 
     <div class="location-footer-wrap">
-        
+        <div id="footer-placeholder"></div>
     </div>
 
     <script>
@@ -213,7 +213,6 @@
         getLocation();
     </script>
     <script src="../js/globalState.js"></script>
-    <div id="footer-placeholder"></div>
     <script src="../js/preloader.js"></script>
     <script src="../js/footer.js"></script>
 </body>
