@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         };
 
-        fetch(pathPrefix + "footer.html")
+        fetch(pathPrefix + "pages/footer.html")
             .then(response => {
                 if (!response.ok) throw new Error("Footer not found");
                 return response.text();

@@ -111,6 +111,14 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+#app {
+    flex: 1 0 auto;
+}
+
+.app-footer-bar {
+    margin-top: auto;
+}
+
 h1, h2, h3, .navbar-title, .page-card-title, .room-section-title {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
@@ -197,12 +205,12 @@ img {
     to { opacity: 0; transform: translateY(-12px); }
 }
 @keyframes pageFadeIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 @keyframes pageFadeOut {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.98); }
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 .page-transition-enter {
     animation: pageSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -230,6 +238,15 @@ img {
 }
 .floor-card-pulse {
     animation: floorCardPulse 2.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 

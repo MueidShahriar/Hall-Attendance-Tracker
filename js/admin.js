@@ -109,6 +109,7 @@ onAuthStateChanged(auth, async (user) => {
                 try {
                     await signOut(auth);
                     localStorage.clear();
+                    sessionStorage.removeItem('fas_post_login_redirect');
                     window.location.href = '/index.html';
                 } catch(e) { alert('Logout failed'); }
             }

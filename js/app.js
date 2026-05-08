@@ -171,15 +171,22 @@ const confettiCtx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
 let confettiParticles = [];
 let confettiAnimating = false;
 let hasShownFullConfetti = false;
+let confettiResizeRaf = null;
 function resizeConfettiCanvas() {
-    if (confettiCanvas) {
-        confettiCanvas.width = window.innerWidth;
-        confettiCanvas.height = window.innerHeight;
-    }
+    if (!confettiCanvas) return;
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+}
+function scheduleConfettiResize() {
+    if (confettiResizeRaf !== null) return;
+    confettiResizeRaf = requestAnimationFrame(() => {
+        confettiResizeRaf = null;
+        resizeConfettiCanvas();
+    });
 }
 if (confettiCanvas) {
     resizeConfettiCanvas();
-    window.addEventListener('resize', resizeConfettiCanvas);
+    window.addEventListener('resize', scheduleConfettiResize);
 }
 function createConfettiParticle() {
     const colors = ['#6366f1', '#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6'];
@@ -197,7 +204,8 @@ function createConfettiParticle() {
 function animateConfetti() {
     if (!confettiAnimating || !confettiCtx) return;
     confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-    confettiParticles.forEach((p, i) => {
+    for (let i = confettiParticles.length - 1; i >= 0; i -= 1) {
+        const p = confettiParticles[i];
         p.y += p.speed;
         p.x += p.drift;
         p.angle += p.spin;
@@ -210,7 +218,7 @@ function animateConfetti() {
         if (p.y > confettiCanvas.height + 20) {
             confettiParticles.splice(i, 1);
         }
-    });
+    }
     if (confettiParticles.length > 0) {
         requestAnimationFrame(animateConfetti);
     } else {
@@ -325,6 +333,22 @@ function updateCountdown() {
 const roomSearch = document.getElementById('room-search');
 const clearSearchBtn = document.getElementById('clear-search');
 let activeRoomFilter = 'all';
+let searchDebounceId = null;
+let searchRafId = null;
+
+function scheduleRoomFilter(term) {
+    if (searchDebounceId) {
+        clearTimeout(searchDebounceId);
+    }
+    searchDebounceId = setTimeout(() => {
+        if (searchRafId) {
+            cancelAnimationFrame(searchRafId);
+        }
+        searchRafId = requestAnimationFrame(() => {
+            filterRooms(term);
+        });
+    }, 120);
+}
 
 function filterRooms(searchTerm, statusFilter = null) {
     const term = (searchTerm || '').trim().toLowerCase();
@@ -378,14 +402,14 @@ function filterRooms(searchTerm, statusFilter = null) {
 if (roomSearch) {
     roomSearch.addEventListener('input', (e) => {
         playSound('click');
-        filterRooms(e.target.value);
+        scheduleRoomFilter(e.target.value);
     });
 }
 if (clearSearchBtn) {
     clearSearchBtn.addEventListener('click', () => {
         playSound('click');
         if (roomSearch) roomSearch.value = '';
-        filterRooms('');
+        scheduleRoomFilter('');
     });
 }
 
@@ -395,7 +419,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn-active'));
         btn.classList.add('filter-btn-active');
         activeRoomFilter = btn.dataset.filter;
-        filterRooms(roomSearch ? roomSearch.value : '');
+        scheduleRoomFilter(roomSearch ? roomSearch.value : '');
     });
 });
 const colorPickerBtn = document.getElementById('color-picker-btn');
@@ -2245,6 +2269,21 @@ async function handleForgotPassword(e) {
         forgotBtn.innerHTML = '<span class="btn-text">Send Reset Link</span>';
     }
 }
+
+function redirectToUserFloorAfterLogin() {
+    if (!userRoomNumber || isAdmin) return;
+    if (sessionStorage.getItem('fas_post_login_redirect') === 'true') return;
+
+    const path = window.location.pathname;
+    const isHomePage = path.endsWith('/') || path.endsWith('/index.html');
+    if (!isHomePage) return;
+
+    const floor = Math.floor(parseInt(userRoomNumber, 10) / 100);
+    if (floor < 1 || floor > 6) return;
+
+    sessionStorage.setItem('fas_post_login_redirect', 'true');
+    window.location.href = `/pages/floor.html?floor=${floor}`;
+}
 async function checkAuth() {
     const { getApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
     let firebaseApp;
@@ -2320,6 +2359,7 @@ async function checkAuth() {
                         localStorage.removeItem('fas_is_admin');
                     }
                     updateProfileDisplay(user, userData);
+                    redirectToUserFloorAfterLogin();
                 } else {
                     // User data deleted by admin — sign out and block access
                     localStorage.clear();
@@ -2365,9 +2405,23 @@ async function init() {
     const floorParam = urlParams.get('floor');
     const isFloorPage = window.location.pathname.includes('/pages/floor.html');
 
-    if (isFloorPage && floorParam) {
+    if (isFloorPage) {
+        const floor = floorParam ? parseInt(floorParam, 10) : NaN;
+        const hasValidFloorParam = Number.isInteger(floor) && floor >= 1 && floor <= 6;
+
+        if (!hasValidFloorParam) {
+            if (!isAdmin && userRoomNumber) {
+                const userFloor = Math.floor(parseInt(userRoomNumber, 10) / 100);
+                if (userFloor >= 1 && userFloor <= 6) {
+                    window.location.href = `/pages/floor.html?floor=${userFloor}`;
+                    return;
+                }
+            }
+            window.location.href = '/index.html';
+            return;
+        }
+
         // Floor detail page: auto-select floor from URL
-        const floor = parseInt(floorParam);
         if (floor >= 1 && floor <= 6) {
             currentFloor = floor;
             ROOMS = getRoomsForFloor(currentFloor);
@@ -2395,9 +2449,6 @@ async function init() {
                     card.style.animationDelay = `${index * 40}ms`;
                 });
             }, 200);
-        } else {
-            window.location.href = '/index.html';
-            return;
         }
     } else {
         // Home/Dashboard page
@@ -2473,6 +2524,7 @@ function initNavbarButtons() {
                     localStorage.removeItem('userEmail');
                     localStorage.removeItem('userName');
                     localStorage.removeItem('userRoom');
+                    sessionStorage.removeItem('fas_post_login_redirect');
                     window.location.reload();
                 } catch (error) {
                     showNotification('Logout failed. Please try again.', 'danger', 3000);

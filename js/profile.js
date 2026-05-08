@@ -554,6 +554,7 @@ async function handleLogout() {
             localStorage.removeItem('userEmail');
             localStorage.removeItem('userName');
             localStorage.removeItem('userRoom');
+            sessionStorage.removeItem('fas_post_login_redirect');
             window.location.href = '/index.html';
         } catch(e) {
             showToast('Logout failed: ' + e.message, 'error');

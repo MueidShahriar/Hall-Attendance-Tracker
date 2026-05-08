@@ -175,6 +175,21 @@
     width: 100%;
 }
 
+/* Full-width overrides for Tailwind max-width utilities */
+.max-w-7xl,
+.max-w-6xl,
+.max-w-5xl,
+.max-w-4xl,
+.max-w-3xl,
+.max-w-2xl,
+.max-w-xl,
+.max-w-lg,
+.max-w-md,
+.max-w-sm {
+    max-width: 100% !important;
+    width: 100%;
+}
+
 /* ===== Countdown Fixed ===== */
 .countdown-fixed {
     position: fixed;

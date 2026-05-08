@@ -16,7 +16,7 @@ const loadPreloader = () => {
             return;
         }
 
-        fetch(pathPrefix + "preloader.html")
+        fetch(pathPrefix + "pages/preloader.html")
             .then(response => {
                 if (!response.ok) throw new Error("Preloader not found");
                 return response.text();
