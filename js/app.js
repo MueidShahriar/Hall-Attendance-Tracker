@@ -1365,7 +1365,10 @@ function renderRoomCard(roomNumber, currentCount) {
             : '');
     card.innerHTML = `
         <div class="flex items-center justify-between mb-1">
-            <div class="text-lg font-bold text-gray-800 flex items-center gap-2">Room ${roomNumber} ${roomLabel}</div>
+            <div class="room-title text-lg font-bold text-gray-800 flex items-center gap-2">
+                <span class="room-title-text">Room ${roomNumber}</span>
+                ${roomLabel}
+            </div>
             <div class="room-badge" id="badge-${roomNumber}">-</div>
         </div>
         <div class="text-sm text-gray-500 mb-2">Students Present:</div>

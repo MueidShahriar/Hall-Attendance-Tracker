@@ -119,6 +119,12 @@
     overflow: hidden;
     will-change: transform;
 }
+.room-title {
+    flex-wrap: wrap;
+}
+.room-title-text {
+    white-space: nowrap;
+}
 .room-card::before {
     content: '';
     position: absolute;
